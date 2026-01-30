@@ -62,6 +62,9 @@ class Usuario implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToOne(inversedBy: 'tokenUsuarioInvitado')]
     private ?InvitacionChat $invitacionesChat = null;
 
+    #[ORM\Column]
+    private ?bool $activo = null;
+
     public function __construct()
     {
         $this->mensajes = new ArrayCollection();
@@ -259,6 +262,18 @@ class Usuario implements UserInterface, PasswordAuthenticatedUserInterface
     public function setInvitacionesChat(?InvitacionChat $invitacionesChat): static
     {
         $this->invitacionesChat = $invitacionesChat;
+
+        return $this;
+    }
+
+    public function isActivo(): ?bool
+    {
+        return $this->activo;
+    }
+
+    public function setActivo(bool $activo): static
+    {
+        $this->activo = $activo;
 
         return $this;
     }
