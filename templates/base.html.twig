@@ -12,8 +12,17 @@
             {% block importmap %}{{ importmap('app') }}{% endblock %}
             {{ encore_entry_script_tags('app') }}
         {% endblock %}
-    </head>
     <body>
+        <nav>
+            <ul>
+                <li><a href="{{ path('app_login') }}">Login</a></li>
+                <li><a href="{{ path('app_register') }}">Register</a></li>
+                <li><a href="{{ path('app_home') }}">Home</a></li>
+                {% if app.user %}
+                    <li><a href="{{ path('app_logout') }}">Logout</a></li>
+                {% endif %}
+            </ul>
+        </nav>
         {% block body %}{% endblock %}
     </body>
 </html>
