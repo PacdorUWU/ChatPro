@@ -2,26 +2,50 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
+        <title>{% block title %}ChatPro{% endblock %}</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
         {% block stylesheets %}
-           
+            <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
         {% endblock %}
 
         {% block javascripts %}
             
         {% endblock %}
+    </head>
     <body>
-        <nav>
-            <ul>
-                <li><a href="{{ path('app_login') }}">Login</a></li>
-                <li><a href="{{ path('app_register') }}">Register</a></li>
-                <li><a href="{{ path('app_home') }}">Home</a></li>
-                {% if app.user %}
-                    <li><a href="{{ path('app_logout') }}">Logout</a></li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% block body %}{% endblock %}
+        <div class="app-container">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <button class="hamburger-menu" onclick="toggleMenu()">☰</button>
+                    <div class="profile-circle" onclick="location.href='{{ path('app_profile') }}'">P</div>
+                </div>
+                <div class="menu-dropdown" id="menuDropdown">
+                    <a href="{{ path('app_invitations') }}">Invitaciones</a>
+                    <a href="{{ path('app_blocked') }}">Bloqueados</a>
+                    <a href="{{ path('app_nearby_users') }}">Usuarios Cercanos</a>
+                </div>
+                <div class="chats-list">
+                    <div class="chat-item general-chat">
+                        <span>Chat General</span>
+                    </div>
+                    <!-- Chats privados dinámicos -->
+                    <div class="chat-item private-chat">
+                        <span>Chat Privado 1</span>
+                    </div>
+                    <div class="chat-item private-chat">
+                        <span>Chat Privado 2</span>
+                    </div>
+                </div>
+            </div>
+            <div class="main-content">
+                {% block body %}{% endblock %}
+            </div>
+        </div>
+        <script>
+            function toggleMenu() {
+                var menu = document.getElementById('menuDropdown');
+                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+            }
+        </script>
     </body>
 </html>
