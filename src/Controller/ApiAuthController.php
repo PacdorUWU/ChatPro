@@ -134,61 +134,6 @@ class ApiAuthController extends AbstractController
         return new JsonResponse(['users' => $data], Response::HTTP_OK);
     }
 
-    public function home(Request $request, EntityManagerInterface $em): JsonResponse
-    {
-        $authHeader = $request->headers->get('Authorization');
-        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
-            return new JsonResponse(['success' => false, 'message' => 'Missing or invalid Authorization header'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        $token = substr($authHeader, 7);
-        $user = $em->getRepository(\App\Entity\Usuario::class)->findOneBy(['token' => $token]);
-        if (!$user) {
-            return new JsonResponse(['success' => false, 'message' => 'Invalid token'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        // Build usuario data
-        $usuario = [
-            'nombre' => $user->getNombre(),
-            'email' => $user->getEmail(),
-            'latitud' => $user->getLatitud(),
-            'longitud' => $user->getLongitud(),
-        ];
-
-        // Find active chats related to this user
-        $chats = $em->getRepository(\App\Entity\Chat::class)->findAll();
-        $chatsActivos = [];
-        foreach ($chats as $chat) {
-            if (!$chat->isActivo()) {
-                continue;
-            }
-            $inv = $chat->getInvitacionChat();
-            if (!$inv) continue;
-
-            $related = false;
-            if ($inv->getTokenUsuarioInvitador()->contains($user) || $inv->getTokenUsuarioInvitado()->contains($user)) {
-                $related = true;
-            }
-
-            if ($related) {
-                $chatsActivos[] = [
-                    'tokenChat' => $chat->getId(),
-                    'tipo' => $chat->getTipo(),
-                    'fecha_entrada' => (new \DateTimeImmutable('now'))->format(DATE_ATOM),
-                ];
-            }
-        }
-
-        return new JsonResponse([
-            'success' => true,
-            'message' => 'Home cargado',
-            'data' => [
-                'usuario' => $usuario,
-                'chats_activos' => $chatsActivos,
-            ],
-        ], Response::HTTP_OK);
-    }
-
     #[Route('/api/perfil', name: 'api_perfil', methods: ['GET'])]
     public function profile(Request $request, EntityManagerInterface $em): JsonResponse
     {
