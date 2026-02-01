@@ -110,6 +110,16 @@ class ApiAuthController extends AbstractController
             $user->setActivo(true);
         }
 
+        // Update geolocation if provided
+        $latitud = $data['latitud'] ?? null;
+        $longitud = $data['longitud'] ?? null;
+        if ($latitud !== null && is_numeric($latitud)) {
+            $user->setLatitud((float)$latitud);
+        }
+        if ($longitud !== null && is_numeric($longitud)) {
+            $user->setLongitud((float)$longitud);
+        }
+
         $em->persist($user);
         $em->flush();
 
@@ -122,6 +132,8 @@ class ApiAuthController extends AbstractController
                 'email' => $user->getEmail(),
                 'nombre' => $user->getNombre(),
                 'activo' => $user->isActivo(),
+                'latitud' => $user->getLatitud(),
+                'longitud' => $user->getLongitud(),
             ],
         ], Response::HTTP_OK);
 
