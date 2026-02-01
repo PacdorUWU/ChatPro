@@ -8,6 +8,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -112,7 +113,8 @@ class ApiAuthController extends AbstractController
         $em->persist($user);
         $em->flush();
 
-        return new JsonResponse([
+        // create response and set AUTH_TOKEN cookie (HttpOnly, SameSite=Lax)
+        $response = new JsonResponse([
             'message' => 'Has iniciado sesión correctamente',
             'token' => $token,
             'user' => [
@@ -122,6 +124,13 @@ class ApiAuthController extends AbstractController
                 'activo' => $user->isActivo(),
             ],
         ], Response::HTTP_OK);
+
+        // cookie expiry: 30 days
+        $expires = new \DateTimeImmutable('+30 days');
+        $cookie = new Cookie('AUTH_TOKEN', $token, $expires, '/', null, $request->isSecure(), true, false, 'lax');
+        $response->headers->setCookie($cookie);
+
+        return $response;
     }
 
     #[Route('/api/logout', name: 'api_logout', methods: ['POST'])]
@@ -163,6 +172,14 @@ class ApiAuthController extends AbstractController
             }
         }
 
+        // 5) cookie AUTH_TOKEN (final fallback)
+        if (!$token) {
+            $cookieToken = $request->cookies->get('AUTH_TOKEN');
+            if ($cookieToken) {
+                $token = $cookieToken;
+            }
+        }
+
         if (!$token) {
             return new JsonResponse(['success' => false, 'message' => 'Missing or invalid token'], Response::HTTP_UNAUTHORIZED);
         }
@@ -179,7 +196,14 @@ class ApiAuthController extends AbstractController
         $em->persist($user);
         $em->flush();
 
-        return new JsonResponse(['success' => true, 'message' => 'Logout successful'], Response::HTTP_OK);
+        // clear cookie by setting expiry in the past
+        $expired = new \DateTimeImmutable('-1 day');
+        $clear = new Cookie('AUTH_TOKEN', '', $expired, '/', null, false, true, false, 'lax');
+
+        $response = new JsonResponse(['success' => true, 'message' => 'Logout successful'], Response::HTTP_OK);
+        $response->headers->setCookie($clear);
+
+        return $response;
     }
 
     public function listUsers(EntityManagerInterface $em): JsonResponse
