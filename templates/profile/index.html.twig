@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Perfil{% endblock %}
+
+{% block body %}
+<div class="profile-container">
+    <h1>Mi Perfil</h1>
+    <div class="profile-info">
+        <div class="profile-avatar">
+            <div class="avatar-circle">P</div>
+        </div>
+        <div class="profile-details">
+            <h2>{{ app.user ? app.user.username : 'Usuario' }}</h2>
+            <form action="{{ path('app_profile_update') }}" method="post">
+                <label for="description">Descripción:</label>
+                <textarea id="description" name="description" rows="4" placeholder="Escribe una descripción sobre ti...">{{ app.user ? app.user.description : '' }}</textarea>
+                <button type="submit" class="save-btn">Guardar</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

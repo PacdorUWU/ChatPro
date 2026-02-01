@@ -9,3 +9,19 @@
 
 controllers:
     resource: routing.controllers
+
+app_profile:
+    path: /profile
+    controller: App\Controller\ProfileController::index
+
+app_invitations:
+    path: /invitaciones
+    controller: App\Controller\InvitationsController::index
+
+app_blocked:
+    path: /bloqueados
+    controller: App\Controller\BlockedController::index
+
+app_nearby_users:
+    path: /usuarios-cercanos
+    controller: App\Controller\NearbyUsersController::index
