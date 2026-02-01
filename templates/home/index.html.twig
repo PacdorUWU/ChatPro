@@ -1,20 +1,38 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Hello HomeController!{% endblock %}
+{% block title %}ChatPro - Home{% endblock %}
 
 {% block body %}
-<style>
-    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
-    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
-</style>
-
-<div class="example-wrapper">
-    <h1>Hello {{ controller_name }}! ✅</h1>
-
-    This friendly message is coming from:
-    <ul>
-        <li>Your controller at <code>C:/xampp/htdocs/ChatPro/src/Controller/HomeController.php</code></li>
-        <li>Your template at <code>C:/xampp/htdocs/ChatPro/templates/home/index.html.twig</code></li>
-    </ul>
+{% if not app.user %}
+<div class="home-login-prompt">
+    <div class="hero-section">
+        <h1>¡Bienvenido a ChatPro!</h1>
+        <p>La mejor app de mensajería para conectar con tus amigos y colegas. Chatea en tiempo real, crea grupos y mantén tus conversaciones privadas.</p>
+        <a href="{{ path('app_login') }}" class="hero-btn">Comenzar a Chatear</a>
+    </div>
+    <div class="features">
+        <div class="feature">
+            <h3>Chats Privados</h3>
+            <p>Conversa de forma segura con tus contactos.</p>
+        </div>
+        <div class="feature">
+            <h3>Chat General</h3>
+            <p>Únete a conversaciones grupales.</p>
+        </div>
+        <div class="feature">
+            <h3>Perfil Personal</h3>
+            <p>Personaliza tu perfil y descripción.</p>
+        </div>
+    </div>
 </div>
+{% else %}
+<div class="chat-dashboard">
+    <h1>¡Hola, {{ app.user.nombre }}!</h1>
+    <p>Selecciona un chat del menú lateral para comenzar, o explora las opciones.</p>
+    <div class="quick-actions">
+        <a href="{{ path('app_profile') }}" class="action-btn">Editar Perfil</a>
+        <a href="{{ path('app_invitations') }}" class="action-btn">Ver Invitaciones</a>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

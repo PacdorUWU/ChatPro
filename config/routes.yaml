@@ -25,3 +25,7 @@ app_blocked:
 app_nearby_users:
     path: /usuarios-cercanos
     controller: App\Controller\NearbyUsersController::index
+
+app_register:
+    path: /register
+    controller: App\Controller\RegistrationController::register

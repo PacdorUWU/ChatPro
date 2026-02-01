@@ -22,18 +22,27 @@ class RegistrationController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            /** @var string $plainPassword */
-            $plainPassword = $form->get('plainPassword')->getData();
+            try {
+                /** @var string $plainPassword */
+                $plainPassword = $form->get('plainPassword')->getData();
 
-            // encode the plain password
-            $user->setPassword($userPasswordHasher->hashPassword($user, $plainPassword));
+                // encode the plain password
+                $user->setPassword($userPasswordHasher->hashPassword($user, $plainPassword));
+                $user->setRoles(['ROLE_USER']);
+                $user->setActivo(true);
 
-            $entityManager->persist($user);
-            $entityManager->flush();
+                $entityManager->persist($user);
+                $entityManager->flush();
 
-            // do anything else you need here, like send an email
+                // do anything else you need here, like send an email
 
-            return $security->login($user, 'form_login', 'main');
+                $this->addFlash('success', 'Cuenta creada exitosamente. Bienvenido!');
+
+                return $security->login($user, 'form_login', 'main');
+            } catch (\Exception $e) {
+                $this->addFlash('error', 'Error al registrar: ' . $e->getMessage());
+                return $this->redirectToRoute('app_login');
+            }
         }
 
         return $this->render('registration/register.html.twig', [

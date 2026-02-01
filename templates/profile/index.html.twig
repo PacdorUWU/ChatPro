@@ -1,20 +1,30 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Perfil{% endblock %}
+{% block title %}Mi Perfil{% endblock %}
 
 {% block body %}
 <div class="profile-container">
-    <h1>Mi Perfil</h1>
-    <div class="profile-info">
-        <div class="profile-avatar">
-            <div class="avatar-circle">P</div>
+    <div class="profile-header">
+        <h1>Mi Perfil</h1>
+        <p>Personaliza tu información y descripción.</p>
+    </div>
+    <div class="profile-content">
+        <div class="profile-avatar-section">
+            <div class="avatar-circle">{{ app.user.nombre|slice(0,1)|upper }}</div>
+            <h2>{{ app.user.nombre }}</h2>
+            <p>{{ app.user.email }}</p>
         </div>
-        <div class="profile-details">
-            <h2>{{ app.user ? app.user.username : 'Usuario' }}</h2>
-            <form action="{{ path('app_profile_update') }}" method="post">
-                <label for="description">Descripción:</label>
-                <textarea id="description" name="description" rows="4" placeholder="Escribe una descripción sobre ti...">{{ app.user ? app.user.description : '' }}</textarea>
-                <button type="submit" class="save-btn">Guardar</button>
+        <div class="profile-form-section">
+            <form action="{{ path('app_profile_update') }}" method="post" class="profile-form">
+                <div class="form-group">
+                    <label for="nombre">Nombre</label>
+                    <input type="text" id="nombre" name="nombre" value="{{ app.user.nombre }}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Correo Electrónico</label>
+                    <input type="email" id="email" name="email" value="{{ app.user.email }}" class="form-control" required>
+                </div>
+                <button type="submit" class="save-btn">Guardar Cambios</button>
             </form>
         </div>
     </div>

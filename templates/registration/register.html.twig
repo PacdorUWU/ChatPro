@@ -1,19 +1,48 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Register{% endblock %}
+{% block title %}Regístrate en ChatPro{% endblock %}
 
 {% block body %}
-    <h1>Register</h1>
+<div class="register-container">
+    <div class="register-form-section">
+        <h1>Crear Cuenta</h1>
+        <p>Únete a ChatPro y comienza a chatear con tus amigos.</p>
 
-    {{ form_errors(registrationForm) }}
+        {% if form_errors(registrationForm) %}
+            <div class="alert alert-danger">
+                {{ form_errors(registrationForm) }}
+            </div>
+        {% endif %}
 
-    {{ form_start(registrationForm) }}
-        {{ form_row(registrationForm.email) }}
-        {{ form_row(registrationForm.plainPassword, {
-            label: 'Password'
-        }) }}
-        {{ form_row(registrationForm.agreeTerms) }}
+        {{ form_start(registrationForm, {'attr': {'class': 'register-form'}}) }}
+            <div class="form-group">
+                {{ form_label(registrationForm.email, 'Correo Electrónico') }}
+                {{ form_widget(registrationForm.email, {'attr': {'class': 'form-control', 'placeholder': 'tu@email.com'}}) }}
+                {{ form_errors(registrationForm.email) }}
+            </div>
 
-        <button type="submit" class="btn">Register</button>
-    {{ form_end(registrationForm) }}
+            <div class="form-group">
+                {{ form_label(registrationForm.plainPassword, 'Contraseña') }}
+                {{ form_widget(registrationForm.plainPassword, {'attr': {'class': 'form-control', 'placeholder': 'Mínimo 6 caracteres'}}) }}
+                {{ form_errors(registrationForm.plainPassword) }}
+            </div>
+
+            <div class="form-group">
+                {{ form_label(registrationForm.nombre, 'Nombre') }}
+                {{ form_widget(registrationForm.nombre, {'attr': {'class': 'form-control', 'placeholder': 'Tu nombre'}}) }}
+                {{ form_errors(registrationForm.nombre) }}
+            </div>
+
+            <div class="form-group checkbox-group">
+                {{ form_widget(registrationForm.agreeTerms) }}
+                {{ form_label(registrationForm.agreeTerms, 'Acepto los términos y condiciones') }}
+                {{ form_errors(registrationForm.agreeTerms) }}
+            </div>
+
+            <button type="submit" class="btn btn-primary register-submit-btn">Crear Cuenta</button>
+        {{ form_end(registrationForm) }}
+
+        <p class="login-link">¿Ya tienes cuenta? <a href="{{ path('app_login') }}">Inicia Sesión</a></p>
+    </div>
+</div>
 {% endblock %}

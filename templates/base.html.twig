@@ -14,8 +14,10 @@
     </head>
     <body>
         <div class="app-container">
+            {% if app.user %}
             <div class="sidebar">
                 <div class="sidebar-header">
+                    <div class="logo">ChatPro</div>
                     <button class="hamburger-menu" onclick="toggleMenu()">☰</button>
                     <div class="profile-circle" onclick="location.href='{{ path('app_profile') }}'">P</div>
                 </div>
@@ -37,6 +39,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             <div class="main-content">
                 {% block body %}{% endblock %}
             </div>

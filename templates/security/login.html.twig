@@ -1,38 +1,49 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Log in!{% endblock %}
+{% block title %}Iniciar Sesión - ChatPro{% endblock %}
 
 {% block body %}
-    <form method="post">
+<div class="login-container">
+    <div class="welcome-section">
+        <h1 class="welcome-title">Bienvenido a ChatPro</h1>
+        <p class="welcome-text">Conecta con amigos y colegas en tiempo real. Inicia sesión para comenzar a chatear.</p>
+        <button class="start-login-btn" onclick="showLoginForm()">Iniciar Sesión</button>
+    </div>
+    <div class="login-form-section" id="loginForm" style="display: none;">
+        <h2>Inicia Sesión</h2>
         {% if error %}
             <div class="alert alert-danger">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
         {% endif %}
 
         {% if app.user %}
             <div class="mb-3">
-                You are logged in as {{ app.user.userIdentifier }}, <a href="{{ logout_path() }}">Logout</a>
+                Ya estás logueado como {{ app.user.userIdentifier }}, <a href="{{ path('app_logout') }}">Cerrar Sesión</a>
             </div>
         {% endif %}
 
-        <h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>
-        <label for="username">Email</label>
-        <input type="email" value="{{ last_username }}" name="_username" id="username" class="form-control" autocomplete="email" required autofocus>
-        <label for="password">Password</label>
-        <input type="password" name="_password" id="password" class="form-control" autocomplete="current-password" required>
-        <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
-
-        {#
-            Uncomment this section and add a remember_me option below your firewall to activate remember me functionality.
-            See https://symfony.com/doc/current/security/remember_me.html
-
-            <div class="checkbox mb-3">
-                <input type="checkbox" name="_remember_me" id="_remember_me">
-                <label for="_remember_me">Remember me</label>
+        <form method="post" class="login-form">
+            <div class="form-group">
+                <label for="username">Correo Electrónico</label>
+                <input type="email" value="{{ last_username }}" name="_username" id="username" class="form-control" autocomplete="email" required autofocus>
             </div>
-        #}
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" name="_password" id="password" class="form-control" autocomplete="current-password" required>
+            </div>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
 
-        <button class="btn btn-lg btn-primary" type="submit">
-            Sign in
-        </button>
-    </form>
+            <button class="btn btn-primary login-submit-btn" type="submit">
+                Entrar
+            </button>
+        </form>
+        <p class="register-link">¿No tienes cuenta? <a href="{{ path('app_register') }}">Regístrate aquí</a></p>
+    </div>
+</div>
+
+<script>
+    function showLoginForm() {
+        document.querySelector('.welcome-section').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+    }
+</script>
 {% endblock %}
