@@ -1,0 +1,19 @@
+# Rutas API explícitas para endpoints de autenticación
+api_register:
+    path: /api/register
+    controller: App\Controller\ApiAuthController::register
+    methods: [POST]
+
+api_login:
+    path: /api/login
+    controller: App\Controller\ApiAuthController::login
+    methods: [POST]
+
+api_users:
+    path: /api/Usuarios
+    controller: App\Controller\ApiAuthController::listUsers
+    methods: [GET]
+api_home:
+    path: /api/home
+    controller: App\\Controller\\ApiAuthController::home
+    methods: [GET]
