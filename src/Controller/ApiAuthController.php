@@ -127,18 +127,55 @@ class ApiAuthController extends AbstractController
     #[Route('/api/logout', name: 'api_logout', methods: ['POST'])]
     public function logout(Request $request, EntityManagerInterface $em): JsonResponse
     {
+        $token = null;
+
+        // 1) Authorization header: Bearer <token>
         $authHeader = $request->headers->get('Authorization');
-        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
-            return new JsonResponse(['success' => false, 'message' => 'Missing or invalid Authorization header'], Response::HTTP_UNAUTHORIZED);
+        if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+            $token = substr($authHeader, 7);
         }
 
-        $token = substr($authHeader, 7);
+        // 2) X-TOKEN-USUARIO header
+        if (!$token) {
+            $tokenHeader = $request->headers->get('X-TOKEN-USUARIO');
+            if ($tokenHeader) {
+                $token = $tokenHeader;
+            }
+        }
+
+        // 3) query param ?tokenusuario=...
+        if (!$token) {
+            $tokenQuery = $request->query->get('tokenusuario');
+            if ($tokenQuery) {
+                $token = $tokenQuery;
+            }
+        }
+
+        // 4) body JSON { "token": "..." } or { "tokenusuario": "..." }
+        if (!$token) {
+            $data = json_decode($request->getContent(), true);
+            if (is_array($data)) {
+                if (!empty($data['token'])) {
+                    $token = $data['token'];
+                } elseif (!empty($data['tokenusuario'])) {
+                    $token = $data['tokenusuario'];
+                }
+            }
+        }
+
+        if (!$token) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing or invalid token'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $token]);
         if (!$user) {
             return new JsonResponse(['success' => false, 'message' => 'Invalid token'], Response::HTTP_UNAUTHORIZED);
         }
 
+        // mark inactive and invalidate token
         $user->setActivo(false);
+        $user->setToken('');
+
         $em->persist($user);
         $em->flush();
 
