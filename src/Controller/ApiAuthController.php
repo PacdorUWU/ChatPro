@@ -110,7 +110,7 @@ class ApiAuthController extends AbstractController
             $user->setActivo(true);
         }
 
-        // Update geolocation if provided
+        // Update geolocation if provided in request body
         $latitud = $data['latitud'] ?? null;
         $longitud = $data['longitud'] ?? null;
         if ($latitud !== null && is_numeric($latitud)) {
@@ -120,20 +120,35 @@ class ApiAuthController extends AbstractController
             $user->setLongitud((float)$longitud);
         }
 
+        // Fallback: try to detect geolocation from client IP if lat/long still missing
+        if ($user->getLatitud() === null || $user->getLongitud() === null) {
+            $clientIp = $request->getClientIp();
+            if ($clientIp) {
+                // Use a simple public IP geolocation service (ip-api.com). If unavailable, skip gracefully.
+                $geoJson = @file_get_contents("http://ip-api.com/json/{$clientIp}?fields=status,message,lat,lon");
+                if ($geoJson !== false) {
+                    $geo = json_decode($geoJson, true);
+                    if (!empty($geo) && isset($geo['status']) && $geo['status'] === 'success') {
+                        if ($user->getLatitud() === null && isset($geo['lat'])) {
+                            $user->setLatitud((float)$geo['lat']);
+                        }
+                        if ($user->getLongitud() === null && isset($geo['lon'])) {
+                            $user->setLongitud((float)$geo['lon']);
+                        }
+                    }
+                }
+            }
+        }
+
         $em->persist($user);
         $em->flush();
 
         // create response and set AUTH_TOKEN cookie (HttpOnly, SameSite=Lax)
         $response = new JsonResponse([
-            'message' => 'Has iniciado sesión correctamente',
+            'message' => 'Se ha podido iniciar sesión',
             'token' => $token,
             'user' => [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
                 'nombre' => $user->getNombre(),
-                'activo' => $user->isActivo(),
-                'latitud' => $user->getLatitud(),
-                'longitud' => $user->getLongitud(),
             ],
         ], Response::HTTP_OK);
 
