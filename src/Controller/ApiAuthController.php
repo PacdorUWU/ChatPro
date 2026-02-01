@@ -103,6 +103,12 @@ class ApiAuthController extends AbstractController
         // rotate token
         $token = bin2hex(random_bytes(30));
         $user->setToken($token);
+
+        // If user is inactive, activate them
+        if (!$user->isActivo()) {
+            $user->setActivo(true);
+        }
+
         $em->persist($user);
         $em->flush();
 
@@ -113,8 +119,30 @@ class ApiAuthController extends AbstractController
                 'id' => $user->getId(),
                 'email' => $user->getEmail(),
                 'nombre' => $user->getNombre(),
+                'activo' => $user->isActivo(),
             ],
         ], Response::HTTP_OK);
+    }
+
+    #[Route('/api/logout', name: 'api_logout', methods: ['POST'])]
+    public function logout(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $authHeader = $request->headers->get('Authorization');
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing or invalid Authorization header'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $token = substr($authHeader, 7);
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $token]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'Invalid token'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $user->setActivo(false);
+        $em->persist($user);
+        $em->flush();
+
+        return new JsonResponse(['success' => true, 'message' => 'Logout successful'], Response::HTTP_OK);
     }
 
     public function listUsers(EntityManagerInterface $em): JsonResponse

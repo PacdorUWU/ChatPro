@@ -9,6 +9,11 @@ api_login:
     controller: App\Controller\ApiAuthController::login
     methods: [POST]
 
+api_logout:
+    path: /api/logout
+    controller: App\Controller\ApiAuthController::logout
+    methods: [POST]
+
 api_users:
     path: /api/Usuarios
     controller: App\Controller\ApiAuthController::listUsers
