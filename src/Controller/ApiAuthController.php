@@ -188,4 +188,44 @@ class ApiAuthController extends AbstractController
             ],
         ], Response::HTTP_OK);
     }
+
+    #[Route('/api/perfil', name: 'api_perfil', methods: ['GET'])]
+    public function profile(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // Accept tokenusuario as query param (?tokenusuario=...) or header (X-TOKEN-USUARIO or Authorization: Bearer ...)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['error' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $data = [
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+            'nombre' => $user->getNombre(),
+            'latitud' => $user->getLatitud(),
+            'longitud' => $user->getLongitud(),
+            'activo' => $user->isActivo(),
+            'baneado' => $user->isBaneado(),
+            'token' => $user->getToken(),
+            'roles' => $user->getRoles(),
+        ];
+
+        return new JsonResponse(['user' => $data], Response::HTTP_OK);
+    }
 }

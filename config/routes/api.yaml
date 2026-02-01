@@ -17,3 +17,8 @@ api_home:
     path: /api/home
     controller: App\\Controller\\ApiAuthController::home
     methods: [GET]
+
+api_perfil:
+    path: /api/perfil
+    controller: App\Controller\ApiAuthController::profile
+    methods: [GET]
