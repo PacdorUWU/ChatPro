@@ -23,3 +23,8 @@ api_perfil:
     path: /api/perfil
     controller: App\Controller\ApiAuthController::profile
     methods: [GET]
+
+api_chat_general:
+    path: /api/chat/general
+    controller: App\Controller\ChatController::general
+    methods: [GET]

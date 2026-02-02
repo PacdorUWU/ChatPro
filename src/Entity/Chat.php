@@ -24,6 +24,9 @@ class Chat
     #[ORM\Column(length: 255)]
     private ?string $token = null;
 
+    #[ORM\Column(type: 'datetime')]
+    private ?\DateTimeInterface $createdAt = null;
+
     /**
      * @var Collection<int, Mensajes>
      */
@@ -75,6 +78,18 @@ class Chat
     public function setToken(string $token): static
     {
         $this->token = $token;
+
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeInterface $createdAt): static
+    {
+        $this->createdAt = $createdAt;
 
         return $this;
     }
