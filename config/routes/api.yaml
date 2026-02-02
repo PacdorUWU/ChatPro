@@ -23,3 +23,13 @@ api_perfil:
     path: /api/perfil
     controller: App\Controller\ApiAuthController::profile
     methods: [GET]
+
+api_home:
+    path: /api/home
+    controller: App\Controller\ApiAuthController::home
+    methods: [GET]
+
+api_chat_privado:
+    path: /api/chat/privado
+    controller: App\Controller\ApiAuthController::chatPrivado
+    methods: [GET]

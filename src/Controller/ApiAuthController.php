@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Usuario;
+use App\Entity\Chat;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -288,5 +289,162 @@ class ApiAuthController extends AbstractController
         ];
 
         return new JsonResponse(['user' => $data], Response::HTTP_OK);
+    }
+
+    #[Route('/api/home', name: 'api_home', methods: ['GET'])]
+    public function home(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction (accepts ?tokenusuario=, X-TOKEN-USUARIO, Authorization: Bearer ...)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        // brief profile
+        $usuario = [
+            'nombre' => $user->getNombre(),
+            'email' => $user->getEmail(),
+            'latitud' => $user->getLatitud(),
+            'longitud' => $user->getLongitud(),
+        ];
+
+        // collect chats related to user (invitacionChat / invitacionesChat) and fallback to all active chats
+        $chatsCollection = [];
+        $invitacion = $user->getInvitacionChat();
+        if ($invitacion) {
+            foreach ($invitacion->getTokenChat() as $chat) {
+                if ($chat->isActivo()) {
+                    $chatsCollection[$chat->getId()] = $chat;
+                }
+            }
+        }
+        $invitaciones = $user->getInvitacionesChat();
+        if ($invitaciones) {
+            foreach ($invitaciones->getTokenChat() as $chat) {
+                if ($chat->isActivo()) {
+                    $chatsCollection[$chat->getId()] = $chat;
+                }
+            }
+        }
+
+        if (empty($chatsCollection)) {
+            $repo = $em->getRepository(Chat::class);
+            $activeChats = $repo->findBy(['activo' => true]);
+            foreach ($activeChats as $chat) {
+                $chatsCollection[$chat->getId()] = $chat;
+            }
+        }
+
+        $resultChats = [];
+        $nowUtc = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        foreach ($chatsCollection as $chat) {
+            $resultChats[] = [
+                'tokenChat' => $chat->getId(),
+                'tipo' => $chat->getTipo(),
+                'fecha_entrada' => $nowUtc->format('Y-m-d\TH:i:s\Z'),
+            ];
+        }
+
+        $dataOut = [
+            'usuario' => $usuario,
+            'chats_activos' => array_values($resultChats),
+        ];
+
+        return new JsonResponse(['success' => true, 'message' => 'Home cargado', 'data' => $dataOut], Response::HTTP_OK);
+    }
+
+    #[Route('/api/chat/privado', name: 'api_chat_privado', methods: ['GET'])]
+    public function chatPrivado(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $chats = [];
+
+        // collect from invitacionChat (user as invitador)
+        $invitacion = $user->getInvitacionChat();
+        if ($invitacion) {
+            foreach ($invitacion->getTokenChat() as $chat) {
+                if ($chat->isActivo() && strtolower($chat->getTipo()) === 'privado') {
+                    $chats[$chat->getToken()] = $chat;
+                }
+            }
+        }
+
+        // collect from invitacionesChat (user as invitado)
+        $invitaciones = $user->getInvitacionesChat();
+        if ($invitaciones) {
+            foreach ($invitaciones->getTokenChat() as $chat) {
+                if ($chat->isActivo() && strtolower($chat->getTipo()) === 'privado') {
+                    $chats[$chat->getToken()] = $chat;
+                }
+            }
+        }
+
+        // build response
+        $data = [];
+        foreach ($chats as $chat) {
+            $inv = $chat->getInvitacionChat();
+            $participants = [];
+            if ($inv) {
+                foreach ($inv->getTokenUsuarioInvitador() as $u) {
+                    $participants[] = ['token' => $u->getToken(), 'nombre' => $u->getNombre()];
+                }
+                foreach ($inv->getTokenUsuarioInvitado() as $u) {
+                    $participants[] = ['token' => $u->getToken(), 'nombre' => $u->getNombre()];
+                }
+
+                // deduplicate by token
+                $seen = [];
+                $participants = array_values(array_filter(array_map(function($p) use (&$seen) {
+                    if (empty($p['token']) || isset($seen[$p['token']])) return null;
+                    $seen[$p['token']] = true;
+                    return $p;
+                }, $participants)));
+            }
+
+            $data[] = [
+                'tokenChat' => $chat->getToken(),
+                'tipo' => $chat->getTipo(),
+                'participantes' => $participants,
+            ];
+        }
+
+        return new JsonResponse(['success' => true, 'message' => 'Chats privados listados', 'data' => $data], Response::HTTP_OK);
     }
 }
