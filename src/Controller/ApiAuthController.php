@@ -29,19 +29,10 @@ class ApiAuthController extends AbstractController
         $email = $data['email'] ?? null;
         $plainPassword = $data['password'] ?? null;
         $nombre = $data['nombre'] ?? null;
-        $activoRaw = $data['activo'] ?? null;
+        // 'activo' is no longer accepted in the registration payload. Users are set inactive by default and will be activated on first login.
 
         if (!$email || !$plainPassword) {
             return new JsonResponse(['error' => 'Missing email or password'], Response::HTTP_BAD_REQUEST);
-        }
-
-        if ($activoRaw === null) {
-            return new JsonResponse(['error' => 'Missing activo field'], Response::HTTP_BAD_REQUEST);
-        }
-
-        $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-        if ($activo === null) {
-            return new JsonResponse(['error' => 'Invalid activo value, must be boolean'], Response::HTTP_BAD_REQUEST);
         }
 
         $repo = $em->getRepository(Usuario::class);
@@ -52,7 +43,8 @@ class ApiAuthController extends AbstractController
         $user = new Usuario();
         $user->setEmail($email);
         $user->setNombre($nombre ?? '');
-        $user->setActivo($activo);
+        // default to inactive; api/login will activate the user
+        $user->setActivo(false);
 
         $hashed = $passwordHasher->hashPassword($user, $plainPassword);
         $user->setPassword($hashed);
@@ -369,6 +361,12 @@ class ApiAuthController extends AbstractController
         ];
 
         return new JsonResponse(['success' => true, 'message' => 'Home cargado', 'data' => $dataOut], Response::HTTP_OK);
+    }
+
+    #[Route('/api/docs', name: 'api_docs', methods: ['GET'])]
+    public function apiDocs(): Response
+    {
+        return $this->render('docs/api_documentation.html.twig');
     }
 
     #[Route('/api/chat/privado', name: 'api_chat_privado', methods: ['GET'])]

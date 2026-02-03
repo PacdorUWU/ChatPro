@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Documentation — ChatPro</title>
+  <style>
+    :root{--primary:#e5d6ff;--accent:#c89bff;--muted:#d7dcee;--bg:#1f1530;--card:#37204f}
+    body{font-family:Inter, Roboto, Arial, Helvetica, sans-serif;margin:0;background:linear-gradient(180deg,var(--bg) 0%, #0b0520 100%);color:#f8f9ff}
+    .container{max-width:1100px;margin:28px auto;padding:28px}
+    header.hero{background:linear-gradient(180deg,#3d2780,#4b2b88);padding:26px;border-radius:12px;box-shadow:0 14px 40px rgba(20,12,40,0.6);margin-bottom:20px;border:1px solid rgba(255,255,255,0.06)}
+    h1{margin:0;font-size:30px;color:var(--primary);letter-spacing:0.2px}
+    h2{color:var(--primary);margin-top:20px}
+    .endpoint{background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));border-radius:12px;padding:20px;margin-bottom:18px;box-shadow:0 10px 30px rgba(20,12,40,0.45);border-left:6px solid var(--accent)}
+    .endpoint h3{margin:0 0 8px 0;display:flex;align-items:center;gap:12px}
+    .badge{display:inline-block;padding:6px 10px;border-radius:6px;font-weight:700;color:#071427;font-size:0.85em}
+    .badge-get{background:#34d399}
+    .badge-post{background:#8ab4ff}
+    .badge-put{background:#ffd27f}
+    .badge-delete{background:#ff8a8a}
+    .meta{font-size:0.95em;color:var(--muted);margin-bottom:10px}
+    pre{background:#221236;color:#efeefe;padding:14px;border-radius:8px;overflow:auto;border:1px solid rgba(255,255,255,0.06)}
+    code{font-family:SFMono-Regular,Menlo,Monaco,monospace;background:rgba(255,255,255,0.02);padding:2px 6px;border-radius:6px;color:#fff}
+    table{width:100%;border-collapse:collapse;margin-top:10px;background:transparent}
+    th{background:rgba(255,255,255,0.02);color:#f7f9ff;font-weight:700}
+    th,td{border:1px solid rgba(255,255,255,0.03);padding:12px;text-align:left;font-size:0.95em;color:#dbe9ff}
+    .muted{color:var(--muted);font-size:0.95em}
+    .two-col{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+
+    /* Hacker-style BODY label and code blocks */
+    pre.code-hacker{background:#001018;color:#39ff14;padding:14px;border-radius:8px;overflow:auto;border:1px solid rgba(57,255,20,0.12);box-shadow:0 10px 40px rgba(0,0,0,0.6)}
+    .code-hacker table{font-family:SFMono-Regular,Menlo,Monaco,monospace;color:#39ff14;border-color:rgba(57,255,20,0.06)}
+    .code-hacker th,.code-hacker td{color:#bfffcf}
+    .code-hacker code{color:#39ff14}
+
+    /* Left navigation */
+    .left-nav{position:fixed;left:18px;top:120px;width:220px;background:linear-gradient(180deg, rgba(18,12,28,0.7), rgba(10,6,18,0.55));border:1px solid rgba(255,255,255,0.04);backdrop-filter:blur(6px);padding:12px;border-radius:10px;color:var(--muted);font-size:0.95em;max-height:70vh;overflow:auto;z-index:40}
+    .left-nav strong{display:block;color:var(--primary);margin-bottom:8px;font-weight:700}
+    .left-nav ul{list-style:none;margin:0;padding:0}
+    .left-nav li{margin:8px 0}
+    .left-nav a{color:var(--muted);text-decoration:none}
+    .left-nav a:hover{color:var(--primary);text-decoration:underline}
+    html{scroll-behavior:smooth}
+    @media (max-width:1100px){.left-nav{display:none}}
+
+    @media (max-width:900px){.two-col{grid-template-columns:1fr}.container{padding:16px}}
+  </style> 
+</head>
+<body>
+  <nav class="left-nav" aria-label="Navegación de endpoints">
+    <strong>Endpoints</strong>
+    <ul>
+      <li><a href="#endpoint-post-api-register">POST /api/register</a></li>
+      <li><a href="#endpoint-post-api-login">POST /api/login</a></li>
+      <li><a href="#endpoint-post-api-logout">POST /api/logout</a></li>
+      <li><a href="#endpoint-get-api-usuarios">GET /api/Usuarios</a></li>
+      <li><a href="#endpoint-get-api-perfil">GET /api/perfil</a></li>
+      <li><a href="#endpoint-get-api-home">GET /api/home</a></li>
+      <li><a href="#endpoint-get-api-chat-general">GET /api/chat/general</a></li>
+      <li><a href="#endpoint-get-api-chat-privado">GET /api/chat/privado</a></li>
+      <li><a href="#endpoint-post-api-chat-invitar">POST /api/chat/invitar</a></li>
+      <li><a href="#endpoint-post-api-chat-privado-salir">POST /api/chat/privado/salir</a></li>
+      <li><a href="#endpoint-post-api-chat-privado-cambiar">POST /api/chat/privado/cambiar</a></li>
+      <li><a href="#endpoint-post-api-invitacion-responder">POST /api/invitacion/responder</a></li>
+      <li><a href="#endpoint-get-post-api-mensaje">GET/POST /api/mensaje</a></li>
+      <li><a href="#endpoint-get-api-actualizar">GET /api/actualizar</a></li>
+    </ul>
+  </nav>
+  <div class="container">
+    <header class="hero">
+      <h1>Documentación de la API — ChatPro</h1>
+      <p class="muted">Listado de endpoints disponibles con descripción, ejemplo de uso, parámetros (nombre y tipo) y ejemplo de respuesta exitosa.</p>
+    </header>
+
+    <div class="two-col">
+      <main>
+
+  <h2>Notas</h2>
+  <ul>
+    <li>Autenticación: muchos endpoints requieren <strong>tokenusuario</strong> (envíalo como <code>Authorization: Bearer &lt;token&gt;</code> o <code>?tokenusuario=&lt;token&gt;</code>). ✅</li>
+    <li>Formato de respuestas: JSON con estructura <code>{ success: boolean, message: string, data: object|null }</code>.</li>
+  </ul>
+
+  {# -- Endpoint: /api/register -- #}
+    <div class="endpoint" id="endpoint-post-api-register">
+    <h3>POST /api/register  — Registrar usuario</h3>
+    <p class="meta">Acceso: público</p>
+    <p>Descripción: Registra un nuevo usuario y devuelve su token.</p>
+    <p class="muted">Nota: no envíes el campo <code>activo</code>. El usuario se creará inactivo y será activado automáticamente al iniciar sesión con <code>/api/login</code>.</p>
+    <p class="muted">Detalle: El email debe ser único; la contraseña se almacena hasheada. Respuesta incluye el <code>token</code> que podrás usar para autenticar llamadas posteriores.</p>
+
+    <h4>Parámetros (JSON)</h4>
+    <div class="code-hacker">
+    <table>
+      <tr><th>campo</th><th>tipo</th><th>obligatorio</th></tr>
+      <tr><td>email</td><td>string</td><td>Sí</td></tr>
+      <tr><td>password</td><td>string</td><td>Sí</td></tr>
+      <tr><td>nombre</td><td>string</td><td>No</td></tr>
+    </table>
+    </div> 
+
+    <h4>Ejemplo de llamada (curl)</h4>
+    <pre class="code-hacker"><code>curl -X POST http://127.0.0.1:8000/api/register "
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"secret","nombre":"Juan"}'</code></pre>
+
+
+    <h4>Ejemplo de llamada (Postman)</h4>
+    <pre class="code-hacker"><code>POST http://127.0.0.1:8000/api/register
+Headers:
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "email": "user@example.com",
+  "password": "secret",
+  "nombre": "Juan"
+}
+</code></pre>
+
+
+    <h4>Ejemplo respuesta (201)</h4>
+    <pre class="code-hacker">{
+  "message": "El usuario se ha registrado correctamente",
+  "token": "...",
+  "user": { "id": 1, "email": "user@example.com", "nombre": "Juan", "activo": false }
+}</pre>
+  </div>
+
+  {# -- POST /api/login -- #}
+    <div class="endpoint" id="endpoint-post-api-login">
+    <h3>POST /api/login  — Login</h3>
+    <p class="meta">Acceso: público</p>
+    <p>Descripción: Inicia sesión con email y contraseña y devuelve un token de acceso y la cookie de sesión.</p>
+    <h4>Parámetros (JSON)</h4>
+    <div class="code-hacker">
+    <table>
+      <tr><th>campo</th><th>tipo</th><th>obligatorio</th></tr>
+      <tr><td>email</td><td>string</td><td>Sí</td></tr>
+      <tr><td>password</td><td>string</td><td>Sí</td></tr>
+      <tr><td>latitud</td><td>float</td><td>No</td></tr>
+      <tr><td>longitud</td><td>float</td><td>No</td></tr>
+    </table>
+    </div> 
+
+    <h4>Ejemplo</h4>
+    <pre class="code-hacker"><code>curl -X POST http://127.0.0.1:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"secret"}'</code></pre>
+
+    <h4>Respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "message": "Se ha podido iniciar sesión",
+  "token": "...",
+  "user": {
+    "nombre": "Juan"
+  }
+}</pre>
+  </div>
+
+  {# -- POST /api/logout -- #}
+    <div class="endpoint" id="endpoint-post-api-logout">
+    <h3>POST /api/logout  — Logout</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Invalida el token del usuario y termina su sesión.</p>
+    <p>Invalida el token del usuario y marca su sesión como inactiva.</p>
+
+    <h4>Cómo llamar</h4>
+    <pre class="code-hacker">curl -X POST http://127.0.0.1:8000/api/logout -H "Authorization: Bearer &lt;token&gt;"</pre>
+
+    <h4>Respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "message": "Logout successful"
+}</pre>
+  </div>
+
+  {# -- GET /api/Usuarios -- #}
+    <div class="endpoint" id="endpoint-get-api-usuarios">
+    <h3>GET /api/Usuarios  — Listar usuarios</h3>
+    <p class="meta">Acceso: público</p>
+    <p>Descripción: Devuelve un listado público de usuarios con campos básicos (id, nombre, email parcialmente oculto).</p>
+    <p>Devuelve listado básico de usuarios.</p>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "nombre": "Juan",
+      "email": "user@example.com"
+    }
+  ]
+}</pre>
+  </div>
+
+  {# -- GET /api/perfil -- #}
+    <div class="endpoint" id="endpoint-get-api-perfil">
+    <h3>GET /api/perfil  — Perfil</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Devuelve los datos del perfil del usuario autenticado (id, nombre, email, ubicación, etc.).</p>
+    <p>Requiere token del usuario (query param o Authorization header).</p>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "data": {
+    "token": "a87c71ec0fb12657b600086626ccc22d6a514d10f42f0c4d19ab55b0e70d",
+    "nombre": "Juan",
+    "email": "user@example.com",
+    "latitud": 40.4,
+    "longitud": -3.7
+  }
+}</pre>
+
+    <h4>Ejemplo</h4>
+    <pre class="code-hacker">curl -H "Authorization: Bearer &lt;token&gt;" http://127.0.0.1:8000/api/perfil</pre>
+  </div>
+
+  {# -- GET /api/home -- #}
+    <div class="endpoint" id="endpoint-get-api-home">
+    <h3>GET /api/home  — Home (resumen de chats activos)</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Resumen inicial que muestra chats activos y estado del usuario (para la vista principal).</p>
+    <p>Devuelve chats activos y un resumen del usuario.</p>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "data": {
+    "chats": [
+      {
+        "token": "general",
+        "nombre": "General",
+        "ultimo_mensaje": "Hola"
+      }
+    ],
+    "user": {
+      "nombre": "Juan"
+    }
+  }
+}</pre>
+  </div>
+
+  {# -- GET /api/chat/general -- #}
+    <div class="endpoint" id="endpoint-get-api-chat-general">
+    <h3>GET /api/chat/general  — Chats públicos</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Lista los chats públicos activos junto con últimos mensajes y metadatos.</p>
+    <p>Lista chats públicos activos.</p>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "data": [
+    {
+      "token": "general",
+      "nombre": "General",
+      "ultimo_mensaje": "Bienvenidos"
+    }
+  ]
+}</pre>
+  </div>
+
+  {# -- GET /api/chat/privado -- #}
+    <div class="endpoint" id="endpoint-get-api-chat-privado">
+    <h3>GET /api/chat/privado  — Chats privados del usuario</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Devuelve los chats privados donde participa el usuario, incluyendo participantes y último mensaje.</p>
+    <p>Lista chats privados en los que participa el usuario (por invitación).</p>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "data": [
+    {
+      "token": "chat_ab12",
+      "participantes": [
+        "Juan",
+        "Ana"
+      ],
+      "ultimo_mensaje": "Hola"
+    }
+  ]
+}</pre>
+  </div>
+
+  {# -- POST /api/chat/invitar -- #}
+    <div class="endpoint" id="endpoint-post-api-chat-invitar">
+    <h3>POST /api/chat/invitar  — Invitar usuario a chat privado</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Crea una invitación para que otro usuario se una a un chat privado; si el chat no existe se crea.</p>
+    <p class="muted">Detalle: Invita a un usuario a un chat privado. Si el chat no existe se crea junto con la invitación. El <code>tokenUsuario</code> es el token del usuario a invitar y debe corresponder a un usuario activo. Solo se permiten invitaciones a chats privados; la API añade al invitador e invitado a la invitación y mantiene la consistencia eliminando chats privados vacíos.</p>
+
+    <h4>Body JSON</h4>
+    <div class="code-hacker">
+    <table>
+      <tr><th>campo</th><th>tipo</th><th>obligatorio</th></tr>
+      <tr><td>tokenchat</td><td>string</td><td>Sí</td></tr>
+      <tr><td>tokenUsuario</td><td>string (token del usuario a invitar)</td><td>Sí</td></tr>
+    </table>
+    </div> 
+
+    <h4>Ejemplo</h4>
+    <pre class="code-hacker"><code>curl -X POST http://127.0.0.1:8000/api/chat/invitar \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"tokenchat":"abcd1234","tokenUsuario":"token_target"}'</code></pre>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "message": "Invitación enviada",
+  "token_invitacion": "tok_inv_123"
+}</pre>
+  </div>
+
+  {# -- POST /api/chat/privado/salir -- #}
+    <div class="endpoint" id="endpoint-post-api-chat-privado-salir">
+    <h3>POST /api/chat/privado/salir  — Salir de chat privado</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Permite a un usuario abandonar un chat privado; si el chat queda vacío se elimina para evitar huérfanos.</p>
+    <p class="muted">Detalle: Quita al usuario de la invitación (si existe). Si tras la salida no hay participantes, la API elimina la invitación y el chat privado para evitar chats huérfanos. Si no existe invitación, se borra el chat directamente.</p>
+    <pre class="code-hacker">{ "tokenchat": "..." }</pre>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "message": "Has salido del chat"
+}</pre>
+  </div>
+
+  {# -- POST /api/chat/privado/cambiar -- #}
+    <div class="endpoint" id="endpoint-post-api-chat-privado-cambiar">
+    <h3>POST /api/chat/privado/cambiar  — Activar/Desactivar chat privado</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Permite activar o desactivar la participación del usuario en un chat privado; crea o elimina invitaciones según sea necesario.</p>
+    <p class="muted">Detalle: Si <code>activo=true</code> y el chat no existe se crea la invitación y el chat y se añade el usuario como invitado (salva el estado de sesión del usuario). Si <code>activo=false</code>, el usuario es eliminado de la invitación y la API borra el chat si queda sin participantes.</p>
+
+    <h4>Body JSON</h4>
+    <pre class="code-hacker">{ "tokenchat": "...", "activo": true|false }</pre>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "message": "Estado de participación actualizado"
+}</pre>
+  </div>
+
+  {# -- POST /api/invitacion/responder -- #}
+    <div class="endpoint" id="endpoint-post-api-invitacion-responder">
+    <h3>POST /api/invitacion/responder  — Aceptar/Rechazar invitación</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Permite al usuario invitado aceptar o rechazar una invitación a chat privado; la acción limpia la invitación y actualiza el estado del chat.</p>
+    <p class="muted">Detalle: Solo el usuario invitado puede aceptar o rechazar. Acción = <code>aceptar</code> → activa los chats relacionados, elimina la invitación y limpia referencias para evitar FK; <code>rechazar</code> → elimina la invitación y elimina el chat privado si queda sin participantes.</p>
+
+    <h4>Body JSON</h4>
+    <div class="code-hacker">
+    <table>
+      <tr><th>campo</th><th>tipo</th><th>obligatorio</th></tr>
+      <tr><td>tokeninvitacion</td><td>string</td><td>Sí</td></tr>
+      <tr><td>accion</td><td>string ("aceptar" | "rechazar")</td><td>Sí</td></tr>
+    </table>
+    </div>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "message": "Invitación aceptada"
+}</pre> 
+
+    <h4>Ejemplo</h4>
+    <pre class="code-hacker"><code>curl -X POST http://127.0.0.1:8000/api/invitacion/responder \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"tokeninvitacion":"tok_inv","accion":"aceptar"}'</code></pre>
+  </div>
+
+  {# -- GET/POST /api/mensaje -- #}
+    <div class="endpoint" id="endpoint-get-post-api-mensaje">
+    <h3>GET/POST /api/mensaje  — Listar/enviar mensajes</h3>
+    <p class="meta">Acceso: Token</p>
+
+    <p>Descripción: Lista mensajes de un chat o permite enviar uno nuevo. En privado solo participantes; en público cualquiera autenticado.</p>
+    <h4>Parámetros</h4>
+    <p>Query or body: <code>tokenchat</code> required; tokenusuario via header or query.</p>
+    <p class="muted">Detalle: En chats públicos cualquier usuario autenticado puede enviar mensajes; en chats privados solo los participantes (invitadores o invitados). La fecha de envío se asigna en el servidor.</p>
+
+    <h4>Body JSON</h4>
+    <pre class="code-hacker">{ "contenido": "..." }</pre>
+
+    <h4>Ejemplo respuesta (POST — 201)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "message": "Mensaje enviado",
+  "data": {
+    "token": "m123",
+    "contenido": "Hola",
+    "fecha_envio": "2026-02-03T16:00:00Z"
+  }
+}</pre>
+
+    <h4>Ejemplo respuesta (GET — 200)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "data": [
+    {
+      "token": "m123",
+      "contenido": "Hola",
+      "usuario": "Juan",
+      "fecha_envio": "2026-02-03T16:00:00Z"
+    }
+  ]
+}</pre>
+
+    <h4>Listar (GET)</h4>
+    <pre class="code-hacker">curl "http://127.0.0.1:8000/api/mensaje?tokenusuario=&lt;token&gt;&tokenchat=&lt;chat_token&gt;"</pre>
+  </div>
+
+  {# -- GET /api/actualizar -- #}
+    <div class="endpoint" id="endpoint-get-api-actualizar">
+    <h3>GET /api/actualizar  — Actualizar (chat general, privados, invitaciones, usuarios cercanos)</h3>
+    <p class="meta">Acceso: Token</p>
+    <p>Descripción: Recupera los últimos mensajes por chat público, chats privados del usuario, invitaciones relacionadas y usuarios cercanos (≤5 km).</p>
+    <p>Devuelve los últimos mensajes de chats públicos y privados del usuario, invitaciones relacionadas y lista de usuarios cercanos (≤5 km).</p>
+    <p class="muted">Detalle: Responde con objetos <code>chatGeneral</code> (mensajes recientes por chat público), <code>chatPrivado</code> (chats privados del usuario con últimos mensajes y participantes), <code>invitaciones</code> (invitaciones que involucran al usuario) y <code>usuarios</code> (usuarios activos a ≤5 km con distancia en km). Incluye contadores como <code>mensajesProcesados</code> e <code>invitacionesNuevas</code>.</p>
+
+    <h4>Ejemplo</h4>
+    <pre class="code-hacker">curl -H "Authorization: Bearer &lt;token&gt;" http://127.0.0.1:8000/api/actualizar</pre>
+
+    <h4>Respuesta (ejemplo)</h4>
+    <pre class="code-hacker">{
+  "success": true,
+  "message": "Chats actualizados",
+  "data": { "chatGeneralActualizado": true, "chatPrivadoActualizado": false, "mensajesProcesados": 10, "invitacionesNuevas": 1, "usuariosCercanos": 3 }
+}</pre>
+  </div>
+
+      </main>
+      <aside class="muted" style="padding-left:12px;max-width:320px">
+        <h4>Notas rápidas</h4>
+        <ul>
+          <li>Envía el token como <code>Authorization: Bearer &lt;token&gt;</code> o <code>?tokenusuario=&lt;token&gt;</code>.</li>
+          <li>Formato genérico de respuesta: <code>{"success": true|false, "message": "...", "data": {...}|null}</code>.</li>
+          <li>Limites: se devuelven los últimos mensajes (configurable).</li>
+        </ul>
+      </aside>
+    </div> <!-- .two-col -->
+  </div> <!-- .container -->
+</body>
+</html>
