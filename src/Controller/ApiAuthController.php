@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Usuario;
 use App\Entity\Chat;
+use App\Entity\InvitacionChat;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -491,5 +492,346 @@ class ApiAuthController extends AbstractController
         }
 
         return new JsonResponse(['success' => true, 'message' => 'Chats públicos listados', 'data' => $data], Response::HTTP_OK);
+    }
+
+    #[Route('/api/chat/invitar', name: 'api_chat_invitar', methods: ['POST'])]
+    public function chatInvitar(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // Extract inviter token (same logic used elsewhere)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $inviter = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$inviter) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $rawContent = $request->getContent();
+        $data = json_decode($rawContent, true);
+        if (!is_array($data)) {
+            return new JsonResponse(['success' => false, 'message' => 'Request body must be JSON'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $tokenChat = $data['tokenchat'] ?? null;
+        $tokenTarget = $data['tokenUsuario'] ?? null;
+
+        if (!$tokenChat || !$tokenTarget) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenchat or tokenUsuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // find target user
+        $target = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenTarget]);
+        if (!$target) {
+            return new JsonResponse(['success' => false, 'error' => '404', 'message' => 'Usuario no encontrado'], Response::HTTP_NOT_FOUND);
+        }
+
+        // target must be online/active
+        if (!$target->isActivo()) {
+            return new JsonResponse(['success' => false, 'message' => 'Usuario no disponible'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Try to find existing chat
+        $chat = $em->getRepository(Chat::class)->findOneBy(['token' => $tokenChat]);
+
+        if ($chat) {
+            // only allow inviting to private chats
+            if (strtolower($chat->getTipo()) !== 'privado') {
+                return new JsonResponse(['success' => false, 'message' => 'Solo se pueden invitar a chats privados'], Response::HTTP_BAD_REQUEST);
+            }
+            $invitacion = $chat->getInvitacionChat();
+            if (!$invitacion) {
+                // create an invitation and attach it
+                $invitacion = new InvitacionChat();
+                $invitacion->setToken(bin2hex(random_bytes(16)));
+                $invitacion->setEstado('aceptada');
+                $em->persist($invitacion);
+                $chat->setInvitacionChat($invitacion);
+            }
+        } else {
+            // create invitation and chat
+            $invitacion = new InvitacionChat();
+            $invitacion->setToken(bin2hex(random_bytes(16)));
+            $invitacion->setEstado('aceptada');
+            $em->persist($invitacion);
+
+            $chat = new Chat();
+            $chat->setTipo('Privado');
+            $chat->setActivo(true);
+            $chat->setToken($tokenChat);
+            $chat->setInvitacionChat($invitacion);
+            $em->persist($chat);
+        }
+
+        // add inviter and target to invitation participants
+        $invitacion->addTokenUsuarioInvitador($inviter);
+        $invitacion->addTokenUsuarioInvitado($target);
+
+        $em->persist($invitacion);
+        $em->flush();
+
+        // cleanup: delete any private chats that have no participants
+        $repo = $em->getRepository(Chat::class);
+        $privateChats = $repo->findBy(['tipo' => 'Privado']);
+        foreach ($privateChats as $pc) {
+            $inv = $pc->getInvitacionChat();
+            $countInvitadores = $inv ? count($inv->getTokenUsuarioInvitador()) : 0;
+            $countInvitados = $inv ? count($inv->getTokenUsuarioInvitado()) : 0;
+            if ($countInvitadores === 0 && $countInvitados === 0) {
+                if ($inv) {
+                    $em->remove($inv);
+                }
+                $em->remove($pc);
+            }
+        }
+        $em->flush();
+
+        $nowUtc = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        return new JsonResponse(['success' => true, 'message' => 'Usuario invitado al chat', 'data' => ['fecha_entrada' => $nowUtc->format('Y-m-d\\TH:i:s\\Z')]], Response::HTTP_OK);
+    }
+
+    #[Route('/api/chat/privado/salir', name: 'api_chat_privado_salir', methods: ['POST'])]
+    public function chatPrivadoSalir(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction (accepts ?tokenusuario=, X-TOKEN-USUARIO, Authorization: Bearer ...)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return new JsonResponse(['success' => false, 'message' => 'Request body must be JSON'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $tokenChat = $data['tokenchat'] ?? null;
+        if (!$tokenChat) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenchat'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $chat = $em->getRepository(Chat::class)->findOneBy(['token' => $tokenChat]);
+        if (!$chat) {
+            return new JsonResponse(['success' => false, 'message' => 'Chat not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (strtolower($chat->getTipo()) !== 'privado') {
+            return new JsonResponse(['success' => false, 'message' => 'Solo se puede salir de chats privados'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $invitacion = $chat->getInvitacionChat();
+        if (!$invitacion) {
+            // no invitation: remove the chat and return success
+            $em->remove($chat);
+            $em->flush();
+            return new JsonResponse(['success' => true, 'message' => 'Saliste del chat', 'data' => null], Response::HTTP_OK);
+        }
+
+        // Remove user if present in either invitador or invitado lists
+        $invitacion->removeTokenUsuarioInvitador($user);
+        $invitacion->removeTokenUsuarioInvitado($user);
+
+        $em->persist($invitacion);
+        $em->flush();
+
+        // If no participants left, remove invitation and chat
+        $countInvitadores = count($invitacion->getTokenUsuarioInvitador());
+        $countInvitados = count($invitacion->getTokenUsuarioInvitado());
+        if ($countInvitadores === 0 && $countInvitados === 0) {
+            $em->remove($invitacion);
+            $em->remove($chat);
+            $em->flush();
+        }
+
+        return new JsonResponse(['success' => true, 'message' => 'Saliste del chat', 'data' => null], Response::HTTP_OK);
+    }
+
+    #[Route('/api/chat/privado/cambiar', name: 'api_chat_privado_cambiar', methods: ['POST'])]
+    public function chatPrivadoCambiar(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction (accepts ?tokenusuario=, X-TOKEN-USUARIO, Authorization: Bearer ...)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return new JsonResponse(['success' => false, 'message' => 'Request body must be JSON'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $tokenChat = $data['tokenchat'] ?? null;
+        if (!$tokenChat) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenchat'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // determine desired active value (must be boolean)
+        if (!array_key_exists('activo', $data)) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing activo'], Response::HTTP_BAD_REQUEST);
+        }
+        $activo = filter_var($data['activo'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($activo === null) {
+            return new JsonResponse(['success' => false, 'message' => 'Invalid activo value, must be boolean'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $repo = $em->getRepository(Chat::class);
+        $chat = $repo->findOneBy(['token' => $tokenChat]);
+
+        if ($chat) {
+            if (strtolower($chat->getTipo()) !== 'privado') {
+                return new JsonResponse(['success' => false, 'message' => 'Solo se pueden cambiar chats privados'], Response::HTTP_BAD_REQUEST);
+            }
+        } else {
+            // create chat + invitation if activating
+            if ($activo) {
+                $invitacion = new InvitacionChat();
+                $invitacion->setToken(bin2hex(random_bytes(16)));
+                $invitacion->setEstado('aceptada');
+                $em->persist($invitacion);
+                $chat = new Chat();
+                $chat->setTipo('Privado');
+                $chat->setActivo(true);
+                $chat->setToken($tokenChat);
+                $chat->setInvitacionChat($invitacion);
+                $em->persist($chat);
+            } else {
+                return new JsonResponse(['success' => false, 'message' => 'Chat not found'], Response::HTTP_NOT_FOUND);
+            }
+        }
+
+        if ($activo) {
+            // Leaving any other private chats the user is currently in
+            $this->leaveOtherPrivateChats($user, $chat, $em);
+
+            // ensure user is part of this chat's invitation participants
+            $invitacion = $chat->getInvitacionChat();
+            if (!$invitacion) {
+                $invitacion = new InvitacionChat();
+                $invitacion->setToken(bin2hex(random_bytes(16)));
+                $invitacion->setEstado('aceptada');
+                $em->persist($invitacion);
+                $chat->setInvitacionChat($invitacion);
+            }
+
+            // add as invited if not present
+            $invitacion->addTokenUsuarioInvitado($user);
+            $chat->setActivo(true);
+            $em->persist($invitacion);
+            $em->persist($chat);
+            $em->flush();
+
+            return new JsonResponse(['success' => true, 'message' => 'Chat activado', 'data' => null], Response::HTTP_OK);
+        } else {
+            // Deactivating: remove user from this chat (same as salir)
+            $invitacion = $chat->getInvitacionChat();
+            if ($invitacion) {
+                $invitacion->removeTokenUsuarioInvitador($user);
+                $invitacion->removeTokenUsuarioInvitado($user);
+                $em->persist($invitacion);
+                $em->flush();
+
+                $countInvitadores = count($invitacion->getTokenUsuarioInvitador());
+                $countInvitados = count($invitacion->getTokenUsuarioInvitado());
+                if ($countInvitadores === 0 && $countInvitados === 0) {
+                    $em->remove($invitacion);
+                    $em->remove($chat);
+                    $em->flush();
+                }
+            } else {
+                // no invitacion: just deactivate or remove chat
+                $em->remove($chat);
+                $em->flush();
+            }
+
+            return new JsonResponse(['success' => true, 'message' => 'Chat desactivado', 'data' => null], Response::HTTP_OK);
+        }
+    }
+
+    private function leaveOtherPrivateChats(Usuario $user, Chat $exceptChat, EntityManagerInterface $em): void
+    {
+        // collect private chats where the user participates, excluding the target chat
+        $chatsToCheck = [];
+        $invitacion = $user->getInvitacionChat();
+        if ($invitacion) {
+            foreach ($invitacion->getTokenChat() as $c) {
+                if ($c->isActivo() && strtolower($c->getTipo()) === 'privado') {
+                    $chatsToCheck[] = $c;
+                }
+            }
+        }
+        $invitaciones = $user->getInvitacionesChat();
+        if ($invitaciones) {
+            foreach ($invitaciones->getTokenChat() as $c) {
+                if ($c->isActivo() && strtolower($c->getTipo()) === 'privado') {
+                    $chatsToCheck[] = $c;
+                }
+            }
+        }
+
+        foreach ($chatsToCheck as $pc) {
+            if ($pc->getToken() === $exceptChat->getToken()) continue;
+
+            $inv = $pc->getInvitacionChat();
+            if ($inv) {
+                $inv->removeTokenUsuarioInvitador($user);
+                $inv->removeTokenUsuarioInvitado($user);
+                $em->persist($inv);
+                $em->flush();
+
+                $countInvitadores = count($inv->getTokenUsuarioInvitador());
+                $countInvitados = count($inv->getTokenUsuarioInvitado());
+                if ($countInvitadores === 0 && $countInvitados === 0) {
+                    $em->remove($inv);
+                    $em->remove($pc);
+                    $em->flush();
+                }
+            } else {
+                $em->remove($pc);
+                $em->flush();
+            }
+        }
     }
 }

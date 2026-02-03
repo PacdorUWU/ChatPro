@@ -38,3 +38,18 @@ api_chat_general:
     path: /api/chat/general
     controller: App\Controller\ApiAuthController::chatGeneral
     methods: [GET]
+
+api_chat_invitar:
+    path: /api/chat/invitar
+    controller: App\Controller\ApiAuthController::chatInvitar
+    methods: [POST]
+
+api_chat_privado_salir:
+    path: /api/chat/privado/salir
+    controller: App\Controller\ApiAuthController::chatPrivadoSalir
+    methods: [POST]
+
+api_chat_privado_cambiar:
+    path: /api/chat/privado/cambiar
+    controller: App\Controller\ApiAuthController::chatPrivadoCambiar
+    methods: [POST]
