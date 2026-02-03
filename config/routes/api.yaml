@@ -63,3 +63,8 @@ api_mensaje:
     path: /api/mensaje
     controller: App\Controller\ApiAuthController::mensaje
     methods: [GET, POST]
+
+api_actualizar:
+    path: /api/actualizar
+    controller: App\Controller\ApiAuthController::actualizar
+    methods: [GET]

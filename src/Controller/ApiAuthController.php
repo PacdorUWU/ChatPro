@@ -1080,4 +1080,191 @@ class ApiAuthController extends AbstractController
 
         return new JsonResponse(['success' => false, 'message' => 'Method not allowed'], Response::HTTP_METHOD_NOT_ALLOWED);
     }
+
+    #[Route('/api/actualizar', name: 'api_actualizar', methods: ['GET'])]
+    public function actualizar(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction (accepts ?tokenusuario=, X-TOKEN-USUARIO, Authorization: Bearer ...)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $mensajesRepo = $em->getRepository(Mensajes::class);
+        $chatRepo = $em->getRepository(Chat::class);
+        $invRepo = $em->getRepository(InvitacionChat::class);
+        $usuarioRepo = $em->getRepository(Usuario::class);
+
+        $messagesProcessed = 0;
+
+        // General chats (public)
+        $publicChats = $chatRepo->findBy(['tipo' => 'Publico', 'activo' => true]);
+        $chatGeneral = [];
+        foreach ($publicChats as $chat) {
+            $msgs = $mensajesRepo->findBy(['tokenChat' => $chat], ['fechaEnvio' => 'DESC'], 10);
+            $arr = [];
+            foreach (array_reverse($msgs) as $m) {
+                $arr[] = [
+                    'token' => $m->getToken(),
+                    'contenido' => $m->getContenido(),
+                    'fecha_envio' => $m->getFechaEnvio() ? $m->getFechaEnvio()->format('Y-m-d\\TH:i:s\\Z') : null,
+                    'usuario' => [
+                        'token' => $m->getTokenUsuario()->getToken(),
+                        'nombre' => $m->getTokenUsuario()->getNombre(),
+                    ],
+                ];
+                $messagesProcessed++;
+            }
+            $chatGeneral[] = [
+                'tokenChat' => $chat->getToken(),
+                'mensajes' => $arr,
+            ];
+        }
+
+        // Private chats for this user
+        $privateChats = [];
+        $invitacion = $user->getInvitacionChat();
+        if ($invitacion) {
+            foreach ($invitacion->getTokenChat() as $c) {
+                if ($c->isActivo() && strtolower($c->getTipo()) === 'privado') {
+                    $privateChats[$c->getToken()] = $c;
+                }
+            }
+        }
+        $invitaciones = $user->getInvitacionesChat();
+        if ($invitaciones) {
+            foreach ($invitaciones->getTokenChat() as $c) {
+                if ($c->isActivo() && strtolower($c->getTipo()) === 'privado') {
+                    $privateChats[$c->getToken()] = $c;
+                }
+            }
+        }
+
+        $chatPrivado = [];
+        foreach ($privateChats as $chat) {
+            $msgs = $mensajesRepo->findBy(['tokenChat' => $chat], ['fechaEnvio' => 'DESC'], 20);
+            $arr = [];
+            foreach (array_reverse($msgs) as $m) {
+                $arr[] = [
+                    'token' => $m->getToken(),
+                    'contenido' => $m->getContenido(),
+                    'fecha_envio' => $m->getFechaEnvio() ? $m->getFechaEnvio()->format('Y-m-d\\TH:i:s\\Z') : null,
+                    'usuario' => [
+                        'token' => $m->getTokenUsuario()->getToken(),
+                        'nombre' => $m->getTokenUsuario()->getNombre(),
+                    ],
+                ];
+                $messagesProcessed++;
+            }
+            $inv = $chat->getInvitacionChat();
+            $participants = [];
+            if ($inv) {
+                foreach ($inv->getTokenUsuarioInvitador() as $u) {
+                    $participants[] = ['token' => $u->getToken(), 'nombre' => $u->getNombre()];
+                }
+                foreach ($inv->getTokenUsuarioInvitado() as $u) {
+                    $participants[] = ['token' => $u->getToken(), 'nombre' => $u->getNombre()];
+                }
+            }
+            $chatPrivado[] = [
+                'tokenChat' => $chat->getToken(),
+                'mensajes' => $arr,
+                'participantes' => array_values(array_unique($participants, SORT_REGULAR)),
+            ];
+        }
+
+        // Recent invitations involving this user
+        $recentInvs = $invRepo->findBy([], ['id' => 'DESC'], 20);
+        $invitacionesList = [];
+        foreach ($recentInvs as $inv) {
+            $involves = false;
+            foreach ($inv->getTokenUsuarioInvitado() as $u) {
+                if ($u->getId() === $user->getId()) $involves = true;
+            }
+            foreach ($inv->getTokenUsuarioInvitador() as $u) {
+                if ($u->getId() === $user->getId()) $involves = true;
+            }
+            if (!$involves) continue;
+
+            $chatsTokens = [];
+            foreach ($inv->getTokenChat() as $c) {
+                $chatsTokens[] = $c->getToken();
+            }
+
+            $invitors = [];
+            foreach ($inv->getTokenUsuarioInvitador() as $u) {
+                $invitors[] = ['token' => $u->getToken(), 'nombre' => $u->getNombre()];
+            }
+            $invitees = [];
+            foreach ($inv->getTokenUsuarioInvitado() as $u) {
+                $invitees[] = ['token' => $u->getToken(), 'nombre' => $u->getNombre()];
+            }
+
+            $invitacionesList[] = [
+                'token' => $inv->getToken(),
+                'estado' => $inv->getEstado(),
+                'chats' => $chatsTokens,
+                'invitadores' => $invitors,
+                'invitados' => $invitees,
+            ];
+        }
+
+        // Nearby users within 5 km
+        $nearby = [];
+        $allUsers = $usuarioRepo->findAll();
+        $originLat = $user->getLatitud();
+        $originLon = $user->getLongitud();
+        if ($originLat !== null && $originLon !== null) {
+            foreach ($allUsers as $u) {
+                if ($u->getId() === $user->getId()) continue;
+                if (!$u->isActivo()) continue;
+                if ($u->getLatitud() === null || $u->getLongitud() === null) continue;
+                $lat1 = deg2rad($originLat);
+                $lon1 = deg2rad($originLon);
+                $lat2 = deg2rad($u->getLatitud());
+                $lon2 = deg2rad($u->getLongitud());
+                $dlat = $lat2 - $lat1;
+                $dlon = $lon2 - $lon1;
+                $a = sin($dlat/2) * sin($dlat/2) + cos($lat1) * cos($lat2) * sin($dlon/2) * sin($dlon/2);
+                $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+                $distanceKm = 6371 * $c;
+                if ($distanceKm <= 5) {
+                    $nearby[] = ['token' => $u->getToken(), 'nombre' => $u->getNombre(), 'distancia_km' => round($distanceKm, 3)];
+                }
+            }
+        }
+
+        // sort nearby by distance
+        usort($nearby, function($a, $b) { return ($a['distancia_km'] <=> $b['distancia_km']); });
+
+        $response = [
+            'chatGeneralActualizado' => count($chatGeneral) > 0,
+            'chatPrivadoActualizado' => count($chatPrivado) > 0,
+            'mensajesProcesados' => $messagesProcessed,
+            'invitacionesNuevas' => count($invitacionesList),
+            'invitaciones' => $invitacionesList,
+            'usuariosCercanos' => count($nearby),
+            'usuarios' => $nearby,
+            'chatGeneral' => $chatGeneral,
+            'chatPrivado' => $chatPrivado,
+        ];
+
+        return new JsonResponse(['success' => true, 'message' => 'Chats actualizados', 'data' => $response], Response::HTTP_OK);
+    }
 }
