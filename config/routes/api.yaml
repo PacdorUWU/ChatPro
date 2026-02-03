@@ -33,3 +33,8 @@ api_chat_privado:
     path: /api/chat/privado
     controller: App\Controller\ApiAuthController::chatPrivado
     methods: [GET]
+
+api_chat_general:
+    path: /api/chat/general
+    controller: App\Controller\ApiAuthController::chatGeneral
+    methods: [GET]

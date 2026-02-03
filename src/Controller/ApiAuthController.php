@@ -447,4 +447,49 @@ class ApiAuthController extends AbstractController
 
         return new JsonResponse(['success' => true, 'message' => 'Chats privados listados', 'data' => $data], Response::HTTP_OK);
     }
+
+    #[Route('/api/chat/general', name: 'api_chat_general', methods: ['GET'])]
+    public function chatGeneral(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction (accepts ?tokenusuario=, X-TOKEN-USUARIO, Authorization: Bearer ...)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $repo = $em->getRepository(Chat::class);
+            $chats = $repo->findBy(['tipo' => 'Publico']);
+        } catch (\Exception $e) {
+            return new JsonResponse(['success' => false, 'message' => 'Database connection error'], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
+        $data = [];
+        foreach ($chats as $chat) {
+            $data[] = [
+                'token' => $chat->getToken(),
+                'tipo' => $chat->getTipo(),
+                'fecha_creacion' => null,
+                'activo' => $chat->isActivo(),
+            ];
+        }
+
+        return new JsonResponse(['success' => true, 'message' => 'Chats públicos listados', 'data' => $data], Response::HTTP_OK);
+    }
 }
