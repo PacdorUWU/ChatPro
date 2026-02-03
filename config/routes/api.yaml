@@ -58,3 +58,8 @@ api_invitacion_responder:
     path: /api/invitacion/responder
     controller: App\Controller\ApiAuthController::invitacionResponder
     methods: [POST]
+
+api_mensaje:
+    path: /api/mensaje
+    controller: App\Controller\ApiAuthController::mensaje
+    methods: [GET, POST]

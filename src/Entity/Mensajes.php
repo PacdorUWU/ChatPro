@@ -19,6 +19,9 @@ class Mensajes
     #[ORM\Column(nullable: true)]
     private ?bool $leido = null;
 
+    #[ORM\Column(type: 'datetime')]
+    private ?\DateTimeInterface $fechaEnvio = null;
+
     #[ORM\Column(length: 255)]
     private ?string $token = null;
 
@@ -55,6 +58,18 @@ class Mensajes
     public function setLeido(?bool $leido): static
     {
         $this->leido = $leido;
+
+        return $this;
+    }
+
+    public function getFechaEnvio(): ?\DateTimeInterface
+    {
+        return $this->fechaEnvio;
+    }
+
+    public function setFechaEnvio(\DateTimeInterface $fechaEnvio): static
+    {
+        $this->fechaEnvio = $fechaEnvio;
 
         return $this;
     }

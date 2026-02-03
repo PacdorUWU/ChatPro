@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Usuario;
 use App\Entity\Chat;
 use App\Entity\InvitacionChat;
+use App\Entity\Mensajes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -957,5 +958,126 @@ class ApiAuthController extends AbstractController
                 $em->flush();
             }
         }
+    }
+
+    #[Route('/api/mensaje', name: 'api_mensaje', methods: ['GET', 'POST'])]
+    public function mensaje(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $tokenChat = $request->query->get('tokenchat') ?? $request->request->get('tokenchat');
+        if (!$tokenChat) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenchat'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $chat = $em->getRepository(Chat::class)->findOneBy(['token' => $tokenChat]);
+        if (!$chat) {
+            return new JsonResponse(['success' => false, 'message' => 'Chat not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        // Check if user is authorized for this chat
+        $authorized = false;
+        if (strtolower($chat->getTipo()) === 'publico') {
+            $authorized = true;
+        } elseif (strtolower($chat->getTipo()) === 'privado') {
+            // Check if user is invitador or invitado
+            $inv = $chat->getInvitacionChat();
+            if ($inv) {
+                foreach ($inv->getTokenUsuarioInvitador() as $u) {
+                    if ($u->getId() === $user->getId()) {
+                        $authorized = true;
+                        break;
+                    }
+                }
+                if (!$authorized) {
+                    foreach ($inv->getTokenUsuarioInvitado() as $u) {
+                        if ($u->getId() === $user->getId()) {
+                            $authorized = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!$authorized) {
+            return new JsonResponse(['success' => false, 'message' => 'Unauthorized access to chat'], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($request->isMethod('POST')) {
+            // Send message
+            $data = json_decode($request->getContent(), true);
+            if (!is_array($data)) {
+                return new JsonResponse(['success' => false, 'message' => 'Request body must be JSON'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $contenido = $data['contenido'] ?? null;
+            if (!$contenido) {
+                return new JsonResponse(['success' => false, 'message' => 'Missing contenido'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $mensaje = new Mensajes();
+            $mensaje->setContenido($contenido);
+            $mensaje->setTokenUsuario($user);
+            $mensaje->setTokenChat($chat);
+            $mensaje->setFechaEnvio(new \DateTime());
+            $mensaje->setToken(bin2hex(random_bytes(16))); // Generate unique token for message
+
+            $em->persist($mensaje);
+            $em->flush();
+
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Mensaje enviado',
+                'data' => [
+                    'tokenchat' => $chat->getToken(),
+                    'contenido' => $mensaje->getContenido(),
+                    'fecha_envio' => $mensaje->getFechaEnvio()->format('Y-m-d\TH:i:s\Z'),
+                ]
+            ], Response::HTTP_CREATED);
+        } elseif ($request->isMethod('GET')) {
+            // List messages
+            $mensajes = $chat->getMensajes();
+            $data = [];
+            foreach ($mensajes as $msg) {
+                $data[] = [
+                    'token' => $msg->getToken(),
+                    'contenido' => $msg->getContenido(),
+                    'fecha_envio' => $msg->getFechaEnvio() ? $msg->getFechaEnvio()->format('Y-m-d\TH:i:s\Z') : null,
+                    'usuario' => [
+                        'token' => $msg->getTokenUsuario()->getToken(),
+                        'nombre' => $msg->getTokenUsuario()->getNombre(),
+                    ],
+                ];
+            }
+
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Mensajes listados',
+                'data' => $data
+            ], Response::HTTP_OK);
+        }
+
+        return new JsonResponse(['success' => false, 'message' => 'Method not allowed'], Response::HTTP_METHOD_NOT_ALLOWED);
     }
 }
