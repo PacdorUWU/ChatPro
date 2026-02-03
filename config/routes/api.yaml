@@ -53,3 +53,8 @@ api_chat_privado_cambiar:
     path: /api/chat/privado/cambiar
     controller: App\Controller\ApiAuthController::chatPrivadoCambiar
     methods: [POST]
+
+api_invitacion_responder:
+    path: /api/invitacion/responder
+    controller: App\Controller\ApiAuthController::invitacionResponder
+    methods: [POST]

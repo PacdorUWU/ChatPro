@@ -790,6 +790,130 @@ class ApiAuthController extends AbstractController
         }
     }
 
+    #[Route('/api/invitacion/responder', name: 'api_invitacion_responder', methods: ['POST'])]
+    public function invitacionResponder(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // token extraction (accepts ?tokenusuario=, X-TOKEN-USUARIO, Authorization: Bearer ...)
+        $tokenUsuario = $request->query->get('tokenusuario');
+        if (!$tokenUsuario) {
+            $authHeader = $request->headers->get('X-TOKEN-USUARIO') ?? $request->headers->get('Authorization');
+            if ($authHeader) {
+                if (str_starts_with($authHeader, 'Bearer ')) {
+                    $tokenUsuario = substr($authHeader, 7);
+                } else {
+                    $tokenUsuario = $authHeader;
+                }
+            }
+        }
+
+        if (!$tokenUsuario) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokenusuario'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(Usuario::class)->findOneBy(['token' => $tokenUsuario]);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return new JsonResponse(['success' => false, 'message' => 'Request body must be JSON'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $tokenInvitacion = $data['tokeninvitacion'] ?? null;
+        $accion = $data['accion'] ?? null;
+
+        if (!$tokenInvitacion || !$accion) {
+            return new JsonResponse(['success' => false, 'message' => 'Missing tokeninvitacion or accion'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $accion = strtolower($accion);
+        if (!in_array($accion, ['aceptar', 'rechazar'])) {
+            return new JsonResponse(['success' => false, 'message' => 'Invalid accion, must be "aceptar" or "rechazar"'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $invitacion = $em->getRepository(InvitacionChat::class)->findOneBy(['token' => $tokenInvitacion]);
+        if (!$invitacion) {
+            return new JsonResponse(['success' => false, 'message' => 'Invitation not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        // confirm the current user is one of the invited users
+        $isInvitado = false;
+        foreach ($invitacion->getTokenUsuarioInvitado() as $invited) {
+            if ($invited->getId() === $user->getId()) {
+                $isInvitado = true;
+                break;
+            }
+        }
+        if (!$isInvitado) {
+            // as fallback, also allow users who have invitacionesChat pointer to this invitacion
+            if ($user->getInvitacionesChat() && $user->getInvitacionesChat()->getId() === $invitacion->getId()) {
+                $isInvitado = true;
+            }
+        }
+
+        if (!$isInvitado) {
+            return new JsonResponse(['success' => false, 'message' => 'No autorizado para gestionar esta invitación'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Handle actions
+        if ($accion === 'aceptar') {
+            // Mark related chats active and detach invitation, then remove invitation
+            foreach ($invitacion->getTokenChat() as $chat) {
+                $chat->setActivo(true);
+                // detach the invitation to avoid orphan references
+                $chat->setInvitacionChat(null);
+                $em->persist($chat);
+            }
+
+            // detach invitation reference from any users (invitador/invitado)
+            foreach ($invitacion->getTokenUsuarioInvitador() as $u) {
+                $u->setInvitacionChat(null);
+                $em->persist($u);
+            }
+            foreach ($invitacion->getTokenUsuarioInvitado() as $u) {
+                $u->setInvitacionesChat(null);
+                $em->persist($u);
+            }
+
+            $em->remove($invitacion);
+            $em->flush();
+
+            return new JsonResponse(['success' => true, 'message' => 'Invitación aceptada', 'data' => null], Response::HTTP_OK);
+        }
+
+        // rechazar
+        foreach ($invitacion->getTokenChat() as $chat) {
+            $inv = $chat->getInvitacionChat();
+            $countInvitadores = $inv ? count($inv->getTokenUsuarioInvitador()) : 0;
+            $countInvitados = $inv ? count($inv->getTokenUsuarioInvitado()) : 0;
+
+            // If the only participant is the invited user and they reject, remove the chat as well
+            if ($countInvitadores === 0 && $countInvitados <= 1) {
+                $em->remove($chat);
+            } else {
+                // otherwise just detach the invitation
+                $chat->setInvitacionChat(null);
+                $em->persist($chat);
+            }
+        }
+
+        // detach invitation reference from users before removal
+        foreach ($invitacion->getTokenUsuarioInvitador() as $u) {
+            $u->setInvitacionChat(null);
+            $em->persist($u);
+        }
+        foreach ($invitacion->getTokenUsuarioInvitado() as $u) {
+            $u->setInvitacionesChat(null);
+            $em->persist($u);
+        }
+
+        $em->remove($invitacion);
+        $em->flush();
+
+        return new JsonResponse(['success' => true, 'message' => 'Invitación rechazada', 'data' => null], Response::HTTP_OK);
+    }
+
     private function leaveOtherPrivateChats(Usuario $user, Chat $exceptChat, EntityManagerInterface $em): void
     {
         // collect private chats where the user participates, excluding the target chat
