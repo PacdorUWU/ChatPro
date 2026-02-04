@@ -1,7 +1,7 @@
 <?php
 $data = [
     'email' => 'docstest2@example.com',
-    'password' => 'secret',
+    'password' => 'secret123',
     'nombre' => 'Doc Test2'
 ];
 $options = [

@@ -35,6 +35,11 @@ class ApiAuthController extends AbstractController
             return new JsonResponse(['error' => 'Missing email or password'], Response::HTTP_BAD_REQUEST);
         }
 
+        // Password minimum length requirement for API register
+        if (mb_strlen($plainPassword) < 8) {
+            return new JsonResponse(['error' => 'La contraseña debe tener al menos 8 caracteres'], Response::HTTP_BAD_REQUEST);
+        }
+
         $repo = $em->getRepository(Usuario::class);
         if ($repo->findOneBy(['email' => $email])) {
             return new JsonResponse(['error' => 'Email already used'], Response::HTTP_CONFLICT);
