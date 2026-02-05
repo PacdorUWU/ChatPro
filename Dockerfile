@@ -10,7 +10,7 @@ FROM php:8.2-apache
 
 RUN apt-get update && apt-get install -y \
     libzip-dev zip unzip git zlib1g-dev libpng-dev libonig-dev libxml2-dev libpq-dev \
-  && docker-php-ext-install pdo pdo_mysql zip opcache \
+  && docker-php-ext-install pdo pdo_mysql pdo_pgsql zip opcache \
   && a2enmod rewrite
 
 WORKDIR /var/www/html
@@ -33,5 +33,28 @@ RUN sed -ri 's!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g
 
 RUN chown -R www-data:www-data var public || true
 
+# Create startup script
+RUN cat > /usr/local/bin/startup.sh << 'EOF'
+#!/bin/bash
+set -e
+
+echo "Starting application initialization..."
+
+# Set environment to production
+export APP_ENV=${APP_ENV:-prod}
+
+# Run database migrations if in production
+if [ "$APP_ENV" = "prod" ]; then
+    echo "Running database migrations..."
+    php bin/console doctrine:migrations:migrate --no-interaction || true
+    echo "Clearing cache..."
+    php bin/console cache:clear --env=prod || true
+fi
+
+echo "Application ready. Starting Apache..."
+apache2-foreground
+EOF
+RUN chmod +x /usr/local/bin/startup.sh
+
 EXPOSE 80
-CMD ["apache2-foreground"]
+CMD ["/usr/local/bin/startup.sh"]
