@@ -1,4 +1,15 @@
 # Rutas API explícitas para endpoints de autenticación
+
+api_health:
+    path: /api/health
+    controller: App\Controller\ApiAuthController::health
+    methods: [GET]
+
+api_diagnostics:
+    path: /api/diagnostics
+    controller: App\Controller\ApiAuthController::diagnostics
+    methods: [GET]
+
 api_register:
     path: /api/register
     controller: App\Controller\ApiAuthController::register

@@ -9,52 +9,112 @@ RUN npm run build || true
 FROM php:8.2-apache
 
 RUN apt-get update && apt-get install -y \
-    libzip-dev zip unzip git zlib1g-dev libpng-dev libonig-dev libxml2-dev libpq-dev \
+    libzip-dev zip unzip git zlib1g-dev libpng-dev libonig-dev libxml2-dev libpq-dev curl \
   && docker-php-ext-install pdo pdo_mysql pdo_pgsql zip opcache \
-  && a2enmod rewrite
+  && a2enmod rewrite headers deflate \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 
 # Copy project files
 COPY . /var/www/html
 
-# Copy built frontend assets (if present)
-COPY --from=node_builder /app/public/build /var/www/html/public/build
+# Copy built frontend assets (if present) - use two-stage approach
+RUN mkdir -p /var/www/html/public/build
+COPY --from=node_builder /app/public/build /var/www/html/public/build/ || true
 
 # Copy composer binary
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist || true
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts 2>&1 || { \
+    echo "WARNING: Composer install had issues, continuing anyway..."; \
+    }
 
+# Configure Apache document root
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri 's!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
- && sed -ri 's!<Directory /var/www/html>!<Directory ${APACHE_DOCUMENT_ROOT}>!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+RUN sed -ri "s!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf && \
+    sed -ri "s!<Directory /var/www/html>!<Directory ${APACHE_DOCUMENT_ROOT}>!g" /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-RUN chown -R www-data:www-data var public || true
+# Set proper permissions - www-data needs write access to var/
+RUN chown -R www-data:www-data /var/www/html && \
+    find /var/www/html/var -type d -exec chmod 775 {} \; && \
+    find /var/www/html/var -type f -exec chmod 664 {} \; && \
+    find /var/www/html/public -type d -exec chmod 755 {} \; && \
+    find /var/www/html/public -type f -exec chmod 644 {} \;
 
-# Create startup script
-RUN cat > /usr/local/bin/startup.sh << 'EOF'
+# Create startup script with better error handling
+RUN mkdir -p /usr/local/bin && cat > /usr/local/bin/startup.sh << 'SCRIPT'
 #!/bin/bash
 set -e
 
-echo "Starting application initialization..."
+echo "===== ChatPro Starting ====="
+echo "APP_ENV=${APP_ENV:-prod}"
+echo "PHP_VERSION=$(php -v | head -n1)"
+echo ""
 
 # Set environment to production
 export APP_ENV=${APP_ENV:-prod}
 
-# Run database migrations if in production
-if [ "$APP_ENV" = "prod" ]; then
-    echo "Running database migrations..."
-    php bin/console doctrine:migrations:migrate --no-interaction || true
-    echo "Clearing cache..."
-    php bin/console cache:clear --env=prod || true
+# Check if DATABASE_URL is set
+if [ -z "$DATABASE_URL" ]; then
+    echo "ERROR: DATABASE_URL environment variable is not set!"
+    echo "Please set DATABASE_URL in your Railway Variables"
+    sleep 5
+    exit 1
 fi
 
-echo "Application ready. Starting Apache..."
-apache2-foreground
-EOF
+# Mask password in output
+DISPLAY_URL=$(echo "$DATABASE_URL" | sed 's/:[^@]*@/:***@/')
+echo "Database URL: $DISPLAY_URL"
+echo ""
+
+# Run database migrations if in production
+if [ "$APP_ENV" = "prod" ]; then
+    echo "=== Running database migrations ==="
+    if ! php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration 2>&1; then
+        echo "WARNING: Migration failed, but continuing anyway..."
+    fi
+    
+    echo ""
+    echo "=== Clearing cache ==="
+    if ! php bin/console cache:clear --env=prod --no-warmup 2>&1; then
+        echo "WARNING: Cache clear failed, but continuing..."
+    fi
+    
+    echo ""
+    echo "=== Warming up cache ==="
+    if ! php bin/console cache:warmup --env=prod 2>&1; then
+        echo "WARNING: Cache warmup failed, but continuing..."
+    fi
+fi
+
+echo ""
+echo "===== Application Ready ====="
+echo "Starting Apache on port 80..."
+echo ""
+
+# Enable error logging
+export APACHE_LOG_DIR=/var/log/apache2
+mkdir -p $APACHE_LOG_DIR
+
+exec apache2-foreground
+SCRIPT
+
 RUN chmod +x /usr/local/bin/startup.sh
+
+# Verify PHP configuration and extensions
+RUN echo "=== PHP Version ===" && php -v && \
+    echo "" && \
+    echo "=== Checking Extensions ===" && \
+    (php -m | grep -E "pdo|mysql|pgsql|zip|xml|json" || echo "Some extensions might be missing") && \
+    echo "" && \
+    echo "=== Symfony Console ===" && \
+    php bin/console --version || echo "WARNING: Symfony console not fully ready (will be at runtime)"
+
+# Health check - using simple PHP endpoint without curl first
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:80/api/health 2>/dev/null || exit 1
 
 EXPOSE 80
 CMD ["/usr/local/bin/startup.sh"]

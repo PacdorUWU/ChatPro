@@ -4,6 +4,28 @@
 
 This error usually means the database connection failed or migrations weren't run.
 
+## Quick Diagnosis
+
+**First, test these endpoints:**
+
+```bash
+# Simple health check (no database needed)
+curl https://your-domain.railway.app/api/health
+
+# Full diagnostics (includes database check)
+curl https://your-domain.railway.app/api/diagnostics
+
+# API documentation
+https://your-domain.railway.app/api/docs
+```
+
+**Expected responses:**
+- `/api/health` → Should return `{"status": "ok", ...}`
+- `/api/diagnostics` → Shows database connection status
+- `/api/docs` → Shows HTML documentation page
+
+If none of these work, continue below.
+
 ## Quick Fix Checklist
 
 ### 1️⃣ Set Environment Variables in Railway
@@ -40,27 +62,30 @@ After setting variables:
 ### 3️⃣ Verify
 
 Once deployed:
-1. Check Railway logs for errors (should see "Application ready")
-2. Visit your domain: `https://your-railway-domain.railway.app/api/docs`
-3. If it works, you'll see the API documentation page
+1. Check Railway logs for errors (should see "Application Ready")
+2. Test: `curl https://your-domain.railway.app/api/health`
+3. If it shows `{"status": "ok"}`, great!
+4. Visit docs: `https://your-domain.railway.app/api/docs`
 
-## Still Getting Errors?
+## Troubleshooting
 
-### Check Logs
+### If `/api/health` returns 404 or timeout:
+
 ```bash
+# Go to Railway shell
 railway shell
-tail -100 /var/log/apache2/error.log
-tail -100 /var/log/apache2/access.log
+
+# Run diagnostic script
+bash scripts/diagnose.sh
+
+# Or manually check:
+curl http://localhost:80/api/health
+tail -20 /var/log/apache2/error.log
 ```
 
-### Check Database Connection
-```bash
-railway shell
-php bin/console doctrine:database:create --if-not-exists --env=prod
-php bin/console doctrine:migrations:migrate --env=prod
-```
+### Database Connection Errors
 
-### Database-specific URLs
+**Copy the DATABASE_URL from Railway:**
 
 **MySQL (Railway):**
 ```
@@ -72,19 +97,42 @@ mysql://root:PASSWORD@mysql.railway.internal:3306/railway?serverVersion=8&charse
 postgresql://postgres:PASSWORD@postgres.railway.internal:5432/railway?serverVersion=16
 ```
 
-## Advanced Troubleshooting
+Find your actual password in Railway's database service "Connect" tab.
 
-### If you get "SQLSTATE[HY000]"
-- The database host/port/credentials are wrong
-- Check DATABASE_URL format
+### If database still fails:
 
-### If you get "no such table"
-- Run migrations: `railway run php bin/console doctrine:migrations:migrate --no-interaction`
+```bash
+railway shell
 
-### If app starts but certain features don't work
-- Clear cache: `railway run php bin/console cache:clear --env=prod`
-- Rebuild assets: `railway redeploy`  (forces full rebuild)
+# Test connection
+php -r "
+\$dsn = getenv('DATABASE_URL');
+echo 'Testing: ' . substr(\$dsn, 0, 50) . '...' . PHP_EOL;
+try {
+    \$pdo = new PDO(\$dsn);
+    echo 'SUCCESS: Database connected' . PHP_EOL;
+} catch (Exception \$e) {
+    echo 'ERROR: ' . \$e->getMessage() . PHP_EOL;
+}
+"
 
----
+# Run migrations manually
+php bin/console doctrine:migrations:migrate --no-interaction --env=prod
+```
 
-**Need more details?** See [README_DEPLOY_RAILWAY.md](README_DEPLOY_RAILWAY.md)
+### Missing `/api/docs` page:
+
+```bash
+railway shell
+ls -la templates/docs/api_documentation.html.twig
+php bin/console cache:clear --env=prod
+```
+
+## Advanced Debugging
+
+See **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** for full debugging guide including:
+- Apache error logs
+- PHP errors
+- Permission issues
+- Manual migrations
+- Cached issues

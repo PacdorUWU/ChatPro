@@ -17,6 +17,52 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class ApiAuthController extends AbstractController
 {
+    #[Route('/api/health', name: 'api_health', methods: ['GET'])]
+    public function health(): JsonResponse
+    {
+        return new JsonResponse([
+            'status' => 'ok',
+            'app' => 'ChatPro',
+            'environment' => $_ENV['APP_ENV'] ?? 'unknown',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'php_version' => phpversion(),
+        ], Response::HTTP_OK);
+    }
+
+    #[Route('/api/diagnostics', name: 'api_diagnostics', methods: ['GET'])]
+    public function diagnostics(EntityManagerInterface $em): JsonResponse
+    {
+        $diagnostics = [
+            'app_state' => 'running',
+            'environment' => $_ENV['APP_ENV'] ?? 'not_set',
+            'php_version' => phpversion(),
+            'extensions' => [
+                'pdo' => extension_loaded('pdo'),
+                'pdo_mysql' => extension_loaded('pdo_mysql'),
+                'pdo_pgsql' => extension_loaded('pdo_pgsql'),
+                'json' => extension_loaded('json'),
+                'xml' => extension_loaded('xml'),
+            ],
+            'database' => [
+                'connected' => false,
+                'error' => null,
+            ],
+        ];
+
+        // Try to connect to database
+        try {
+            $connection = $em->getConnection();
+            $connection->executeQuery('SELECT 1');
+            $diagnostics['database']['connected'] = true;
+            $diagnostics['database']['driver'] = $connection->getDriver()::class;
+            $diagnostics['database']['database'] = $connection->getDatabase();
+        } catch (\Exception $e) {
+            $diagnostics['database']['error'] = $e->getMessage();
+        }
+
+        return new JsonResponse($diagnostics, Response::HTTP_OK);
+    }
+
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function register(Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $em): JsonResponse
     {
