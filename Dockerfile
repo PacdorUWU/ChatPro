@@ -2,7 +2,7 @@
 
 FROM node:18 AS node_builder
 WORKDIR /app
-COPY package.json package-lock.json yarn.lock webpack.config.js assets/ ./
+COPY package.json package-lock.json webpack.config.js assets/ ./
 RUN npm ci --silent || true
 RUN npm run build || true
 
