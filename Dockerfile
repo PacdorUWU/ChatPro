@@ -32,17 +32,20 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-di
     echo "WARNING: Composer install had issues, continuing anyway..."; \
     }
 
+# Create var directory if it doesn't exist
+RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log
+
 # Configure Apache document root
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri "s!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf && \
     sed -ri "s!<Directory /var/www/html>!<Directory ${APACHE_DOCUMENT_ROOT}>!g" /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Set proper permissions - www-data needs write access to var/
+# Set proper permissions - do this after var/ directory exists
 RUN chown -R www-data:www-data /var/www/html && \
-    find /var/www/html/var -type d -exec chmod 775 {} \; && \
-    find /var/www/html/var -type f -exec chmod 664 {} \; && \
-    find /var/www/html/public -type d -exec chmod 755 {} \; && \
-    find /var/www/html/public -type f -exec chmod 644 {} \;
+    chmod -R 775 /var/www/html/var && \
+    chmod -R 755 /var/www/html/public && \
+    find /var/www/html/var -type f 2>/dev/null -exec chmod 664 {} \; || true && \
+    find /var/www/html/public -type f 2>/dev/null -exec chmod 644 {} \; || true
 
 # Create startup script with better error handling
 RUN mkdir -p /usr/local/bin && cat > /usr/local/bin/startup.sh << 'SCRIPT'
