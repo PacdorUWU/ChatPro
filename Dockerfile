@@ -5,6 +5,8 @@ WORKDIR /app
 COPY package.json package-lock.json webpack.config.js assets/ ./
 RUN npm ci --silent || true
 RUN npm run build || true
+# Ensure build directory exists even if npm failed
+RUN mkdir -p /app/public/build
 
 FROM php:8.2-apache
 
@@ -19,9 +21,8 @@ WORKDIR /var/www/html
 # Copy project files
 COPY . /var/www/html
 
-# Copy built frontend assets (if present) - use two-stage approach
-RUN mkdir -p /var/www/html/public/build
-COPY --from=node_builder /app/public/build /var/www/html/public/build/ || true
+# Copy built frontend assets (if present)
+COPY --from=node_builder /app/public/build /var/www/html/public/build/
 
 # Copy composer binary
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
