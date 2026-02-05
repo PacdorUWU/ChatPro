@@ -1,0 +1,14 @@
+/.git
+/vendor
+/var
+/node_modules
+/tmp
+/tests
+/migrations
+/.env
+/.env.local
+/.env.*.local
+/.idea
+/.vscode
+/.DS_Store
+/public/build
