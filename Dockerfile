@@ -85,9 +85,17 @@ if [ "$APP_ENV" = "prod" ]; then
 fi
 
 echo ""
+PORT_VALUE=${PORT:-80}
+
 echo "===== Application Ready ====="
-echo "Starting Apache on port 80..."
+echo "Starting Apache on port ${PORT_VALUE}..."
 echo ""
+
+# Railway assigns a dynamic PORT; update Apache to listen on it
+if [ "$PORT_VALUE" != "80" ]; then
+    sed -ri "s!^Listen 80!Listen ${PORT_VALUE}!" /etc/apache2/ports.conf || true
+    sed -ri "s!<VirtualHost \*:80>!<VirtualHost *:${PORT_VALUE}>!" /etc/apache2/sites-available/000-default.conf || true
+fi
 
 if command -v a2dismod >/dev/null 2>&1; then
     a2dismod mpm_event mpm_worker >/dev/null 2>&1 || true
