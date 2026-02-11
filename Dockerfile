@@ -42,6 +42,9 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri "s!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf && \
     sed -ri "s!<Directory /var/www/html>!<Directory ${APACHE_DOCUMENT_ROOT}>!g" /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
+# Avoid startup warning about missing ServerName
+RUN printf "ServerName localhost\n" > /etc/apache2/conf-available/servername.conf && a2enconf servername
+
 # Set proper permissions - do this after var/ directory exists
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 775 /var/www/html/var && \
