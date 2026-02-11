@@ -13,7 +13,9 @@ FROM php:8.2-apache
 RUN apt-get update && apt-get install -y \
     libzip-dev zip unzip git zlib1g-dev libpng-dev libonig-dev libxml2-dev libpq-dev curl \
   && docker-php-ext-install pdo pdo_mysql pdo_pgsql zip opcache \
-  && a2enmod rewrite headers deflate \
+    && a2enmod rewrite headers deflate \
+    && a2dismod mpm_event mpm_worker || true \
+    && a2enmod mpm_prefork \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
