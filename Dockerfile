@@ -61,6 +61,11 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
+# Ensure cache/log directories are writable on each start
+mkdir -p /var/www/html/var/cache /var/www/html/var/log
+chown -R www-data:www-data /var/www/html/var || true
+chmod -R ug+rwX /var/www/html/var || true
+
 DISPLAY_URL=$(echo "$DATABASE_URL" | sed 's/:[^@]*@/:***@/')
 echo "Database URL: $DISPLAY_URL"
 echo ""
