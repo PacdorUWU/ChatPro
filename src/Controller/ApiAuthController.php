@@ -17,6 +17,8 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class ApiAuthController extends AbstractController
 {
+    private const API_KEY = 'example-change-me-2026';
+
     #[Route('/api/health', name: 'api_health', methods: ['GET'])]
     public function health(): JsonResponse
     {
