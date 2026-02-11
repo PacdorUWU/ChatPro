@@ -79,6 +79,14 @@ class ApiAuthController extends AbstractController
             define('apikey', self::API_KEY);
         }
 
+        $providedKey = $_SERVER['HTTP_X_API_KEY'] ?? $_GET['apikey'] ?? null;
+        if (!$providedKey || !hash_equals(self::API_KEY, $providedKey)) {
+            return new JsonResponse([
+                'error' => 'Unauthorized',
+                'message' => 'Missing or invalid API key',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
         try {
             $connection = $em->getConnection();
             $connection->executeQuery('SELECT 1');
