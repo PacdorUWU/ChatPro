@@ -100,6 +100,17 @@ echo "===== Application Ready ====="
 echo "Starting Apache on port 80..."
 echo ""
 
+# Ensure only one MPM is enabled (some base images enable multiple)
+if command -v a2dismod >/dev/null 2>&1; then
+    a2dismod mpm_event mpm_worker >/dev/null 2>&1 || true
+    a2enmod mpm_prefork >/dev/null 2>&1 || true
+fi
+
+# Log active MPMs for debugging
+if command -v apache2ctl >/dev/null 2>&1; then
+    apache2ctl -M 2>/dev/null | grep -E "mpm_(event|worker|prefork)" || true
+fi
+
 # Enable error logging
 export APACHE_LOG_DIR=/var/log/apache2
 mkdir -p $APACHE_LOG_DIR
