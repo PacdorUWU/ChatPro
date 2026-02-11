@@ -51,6 +51,7 @@
     <strong>Endpoints</strong>
     <ul>
       <li><a href="#endpoint-post-api-register">POST /api/register</a></li>
+      <li><a href="#endpoint-get-api-conexion">GET /api/conexion</a></li>
       <li><a href="#endpoint-post-api-login">POST /api/login</a></li>
       <li><a href="#endpoint-post-api-logout">POST /api/logout</a></li>
       <li><a href="#endpoint-get-api-usuarios">GET /api/Usuarios</a></li>
@@ -123,6 +124,32 @@ Body (raw JSON):
   "message": "El usuario se ha registrado correctamente",
   "token": "...",
   "user": { "id": 1, "email": "user@example.com", "nombre": "Juan", "activo": false }
+}</pre>
+  </div>
+
+  {# -- GET /api/conexion -- #}
+    <div class="endpoint" id="endpoint-get-api-conexion">
+    <h3>GET /api/conexion  — Verificar conexion</h3>
+    <p class="meta">Acceso: API key</p>
+    <p>Descripcion: Comprueba el estado de conexion con la base de datos.</p>
+    <p class="muted">Debe enviar la API key via header <code>X-API-KEY</code> o query param <code>?apikey=...</code>.</p>
+
+    <h4>Ejemplo de llamada (curl)</h4>
+    <pre class="code-hacker"><code>curl -X GET http://127.0.0.1:8000/api/conexion \
+  -H "X-API-KEY: example-change-me-2026"</code></pre>
+
+    <h4>Ejemplo de llamada (Postman)</h4>
+    <pre class="code-hacker"><code>GET http://127.0.0.1:8000/api/conexion
+Headers:
+  X-API-KEY: example-change-me-2026
+</code></pre>
+
+    <h4>Ejemplo respuesta (200)</h4>
+    <pre class="code-hacker">{
+  "app": "ChatPro",
+  "connected": true,
+  "database": "chatpro",
+  "error": null
 }</pre>
   </div>
 
