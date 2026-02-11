@@ -5,7 +5,6 @@
 /tmp
 /tests
 /migrations
-/.env
 /.env.local
 /.env.*.local
 /.idea
