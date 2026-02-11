@@ -63,6 +63,28 @@ class ApiAuthController extends AbstractController
         return new JsonResponse($diagnostics, Response::HTTP_OK);
     }
 
+    #[Route('/api/conexion', name: 'api_conexion', methods: ['GET'])]
+    public function conexion(EntityManagerInterface $em): JsonResponse
+    {
+        $status = [
+            'app' => 'ChatPro',
+            'connected' => false,
+            'database' => null,
+            'error' => null,
+        ];
+
+        try {
+            $connection = $em->getConnection();
+            $connection->executeQuery('SELECT 1');
+            $status['connected'] = true;
+            $status['database'] = $connection->getDatabase();
+        } catch (\Exception $e) {
+            $status['error'] = $e->getMessage();
+        }
+
+        return new JsonResponse($status, Response::HTTP_OK);
+    }
+
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function register(Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $em): JsonResponse
     {

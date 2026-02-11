@@ -10,6 +10,11 @@ api_diagnostics:
     controller: App\Controller\ApiAuthController::diagnostics
     methods: [GET]
 
+api_conexion:
+    path: /api/conexion
+    controller: App\Controller\ApiAuthController::conexion
+    methods: [GET]
+
 api_register:
     path: /api/register
     controller: App\Controller\ApiAuthController::register
