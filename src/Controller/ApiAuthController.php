@@ -75,6 +75,10 @@ class ApiAuthController extends AbstractController
             'error' => null,
         ];
 
+        if (!defined('apikey')) {
+            define('apikey', self::API_KEY);
+        }
+
         try {
             $connection = $em->getConnection();
             $connection->executeQuery('SELECT 1');
